@@ -173,11 +173,76 @@ const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout }) => 
   );
 };
 
+// Componente per la mappatura manuale delle colonne
+const ColumnMapper = ({ mappingInfo, onConfirm, onCancel }) => {
+  const [mapping, setMapping] = useState({});
+
+  const handleSelectChange = (missingField, selectedColumn) => {
+    setMapping(prev => ({ ...prev, [missingField]: selectedColumn }));
+  };
+
+  const handleSubmit = () => {
+    // Costruisci la mappa finale: { internalKey: 'ExcelColumnLetter' }
+    const finalMapping = {};
+    for (const field of mappingInfo.missingFields) {
+      const selectedHeaderName = mapping[field];
+      if (selectedHeaderName) {
+        // Trova la lettera della colonna corrispondente al nome dell'header selezionato
+        const colLetter = Object.keys(mappingInfo.availableHeaders).find(
+          key => mappingInfo.availableHeaders[key] === selectedHeaderName
+        );
+        if (colLetter) {
+          finalMapping[field] = colLetter;
+        }
+      }
+    }
+    onConfirm(finalMapping);
+  };
+
+  return (
+    <div className="column-mapper-overlay">
+      <div className="column-mapper-card">
+        <h3>Mappatura Colonne Manuale</h3>
+        <p>Alcune colonne obbligatorie non sono state trovate. Abbina le colonne del tuo file ai campi richiesti.</p>
+
+        <div className="mapping-fields">
+          {mappingInfo.missingFields.map(field => (
+            <div key={field} className="mapping-field">
+              <label htmlFor={`select-${field}`}>
+                Campo richiesto: <strong>{mappingInfo.expectedHeaders[field][0]}</strong>
+              </label>
+              <select
+                id={`select-${field}`}
+                onChange={(e) => handleSelectChange(field, e.target.value)}
+              >
+                <option value="">Seleziona colonna dal tuo file...</option>
+                {Object.values(mappingInfo.availableHeaders).map(header => (
+                  <option key={header} value={header}>{header}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+
+        <div className="mapping-actions">
+          <button onClick={onCancel} className="cancel-btn">Annulla</button>
+          <button onClick={handleSubmit} className="confirm-btn">Conferma e Carica</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 // Componente File Upload
 const FileUpload = () => {
   const { data, setData } = useData();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mappingState, setMappingState] = useState(null);
+  const [renamingFile, setRenamingFile] = useState(null); // Stato per rinomina
+  const [newName, setNewName] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' }); // Stato per ordinamento
 
   // Carica file all'avvio
   React.useEffect(() => {
@@ -187,66 +252,32 @@ const FileUpload = () => {
   const loadFiles = async () => {
     try {
       const files = await apiService.loadFiles();
-      
-      // Converte i dati dal formato database al formato app
       const processedFiles = await Promise.all(files.map(async (file) => {
         try {
-          // Carica dati completi del file se necessario per la dashboard
           const fileData = await apiService.getFileData(file.file_date);
-          
           return {
-            id: file.id,
-            name: file.file_name,
-            date: file.file_date,
-            displayDate: file.display_date,
-            uploadDate: file.upload_date,
-            size: file.file_size,
-            data: fileData, // Dati completi per la dashboard
+            id: file.id, name: file.file_name, date: file.file_date,
+            displayDate: file.display_date, uploadDate: file.upload_date, size: file.file_size,
+            data: fileData,
             metadata: {
-              totalAgents: file.total_agents,
-              totalSMs: file.total_sms,
-              totalRevenue: file.total_revenue,
-              totalInflow: file.total_inflow,
-              totalNewClients: file.total_new_clients,
-              totalFastweb: file.total_fastweb
+              totalAgents: file.total_agents, totalSMs: file.total_sms, totalRevenue: file.total_revenue,
+              totalInflow: file.total_inflow, totalNewClients: file.total_new_clients, totalFastweb: file.total_fastweb
             }
           };
         } catch (error) {
           console.warn(`Errore caricamento dati file ${file.file_date}:`, error);
-          // Ritorna file senza dati completi se il caricamento fallisce
           return {
-            id: file.id,
-            name: file.file_name,
-            date: file.file_date,
-            displayDate: file.display_date,
-            uploadDate: file.upload_date,
-            size: file.file_size,
-            data: null,
-            metadata: {
-              totalAgents: file.total_agents,
-              totalSMs: file.total_sms,
-              totalRevenue: file.total_revenue,
-              totalInflow: file.total_inflow,
-              totalNewClients: file.total_new_clients,
-              totalFastweb: file.total_fastweb
-            }
+            id: file.id, name: file.file_name, date: file.file_date,
+            displayDate: file.display_date, uploadDate: file.upload_date, size: file.file_size,
+            data: null, metadata: {}
           };
         }
       }));
       
-      // Crea anche il processedData per compatibilità
       const processedData = {};
-      processedFiles.forEach(file => {
-        if (file.data) {
-          processedData[file.date] = file.data;
-        }
-      });
+      processedFiles.forEach(file => { if (file.data) processedData[file.date] = file.data; });
       
-      setData(prevData => ({
-        ...prevData,
-        uploadedFiles: processedFiles,
-        processedData: processedData
-      }));
+      setData(prevData => ({ ...prevData, uploadedFiles: processedFiles, processedData: processedData }));
       
     } catch (error) {
       toast.error('Errore nel caricamento dei file dal server');
@@ -256,75 +287,55 @@ const FileUpload = () => {
     }
   };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
+  const processAndUploadFile = async (file, manualMapping = {}) => {
     setUploading(true);
     toast.loading('Parsing del file Excel...', { id: 'upload' });
 
     try {
-      // Validazione tipo file
-      const validTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel'
-      ];
-      
-      if (!validTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.xlsx')) {
-        toast.error('File non valido. Sono supportati solo file Excel (.xlsx, .xls)', { id: 'upload' });
+      const parseResult = await parseExcelFile(file, manualMapping);
+
+      if (parseResult.needsMapping) {
+        toast.dismiss('upload');
+        setMappingState({ ...parseResult.data, file });
+        setUploading(false);
         return;
       }
-
-      // Parsing del file Excel
-      const parseResult = await parseExcelFile(file);
       
       if (!parseResult.success) {
         toast.error(`Errore nel parsing: ${parseResult.error}`, { id: 'upload' });
+        setUploading(false);
         return;
       }
 
+      toast.loading('Caricamento dati...', { id: 'upload' });
       const { data: parsedData } = parseResult;
       const fileDate = parsedData.fileInfo.dateInfo.dateString;
 
-      // Controlla duplicati localmente
       const existingFile = data.uploadedFiles.find(f => f.date === fileDate);
-      
       if (existingFile) {
         toast.dismiss('upload');
-        const confirm = window.confirm(
-          `Esiste già un file per ${parsedData.fileInfo.dateInfo.displayDate}. Vuoi sovrascriverlo?`
-        );
-        if (!confirm) return;
+        const confirm = window.confirm(`Esiste già un file per ${parsedData.fileInfo.dateInfo.displayDate}. Vuoi sovrascriverlo?`);
+        if (!confirm) {
+          setUploading(false);
+          return;
+        }
         toast.loading('Aggiornamento file...', { id: 'upload' });
-      } else {
-        toast.loading('Caricamento file sul server...', { id: 'upload' });
       }
 
-      // Prepara dati per API
       const fileData = {
-        name: file.name,
-        date: fileDate,
-        displayDate: parsedData.fileInfo.dateInfo.displayDate,
-        size: file.size,
+        name: file.name, date: fileDate, displayDate: parsedData.fileInfo.dateInfo.displayDate, size: file.size,
         data: parsedData,
         metadata: {
-          totalAgents: parsedData.metadata.totalAgents,
-          totalSMs: parsedData.metadata.totalSMs,
+          totalAgents: parsedData.metadata.totalAgents, totalSMs: parsedData.metadata.totalSMs,
           parseDate: new Date().toISOString()
         }
       };
 
-      // Salva nel database tramite API
       const result = await apiService.saveFile(fileData);
       
       if (result.success) {
         const actionText = result.action === 'updated' ? 'aggiornato' : 'caricato';
-        toast.success(
-          `File ${actionText} con successo! ${result.stats?.total_agents || 0} agenti importati`, 
-          { id: 'upload' }
-        );
-        
-        // Ricarica la lista files dal server
+        toast.success(`File ${actionText} con successo! ${result.stats?.total_agents || 0} agenti importati`, { id: 'upload' });
         await loadFiles();
       } else {
         throw new Error(result.error || 'Errore sconosciuto durante il caricamento');
@@ -335,53 +346,90 @@ const FileUpload = () => {
       console.error('Upload error:', error);
     } finally {
       setUploading(false);
-      event.target.value = '';
+      setMappingState(null);
+      const fileInput = document.getElementById('file-upload');
+      if (fileInput) fileInput.value = '';
+    }
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    processAndUploadFile(file);
+  };
+
+  const handleConfirmMapping = (manualMapping) => {
+    if (mappingState && mappingState.file) {
+      processAndUploadFile(mappingState.file, manualMapping);
     }
   };
 
   const handleDeleteFile = async (fileDate, fileName) => {
-    if (!window.confirm(`Sei sicuro di voler eliminare il file ${fileName}?`)) {
+    if (!window.confirm(`Sei sicuro di voler eliminare il file ${fileName}?`)) return;
+    try {
+      toast.loading('Eliminazione file...', { id: 'delete' });
+      await apiService.deleteFile(fileDate);
+      toast.success('File eliminato con successo', { id: 'delete' });
+      await loadFiles();
+    } catch (error) {
+      toast.error(`Errore nell'eliminazione: ${error.message}`, { id: 'delete' });
+    }
+  };
+
+  const handleRenameFile = async (fileDate) => {
+    if (!newName || !renamingFile) return;
+    if (newName === renamingFile.name) {
+      setRenamingFile(null);
       return;
     }
 
     try {
-      toast.loading('Eliminazione file...', { id: 'delete' });
-      
-      await apiService.deleteFile(fileDate);
-      
-      toast.success('File eliminato con successo', { id: 'delete' });
-      
-      // Ricarica la lista
+      toast.loading('Rinominando il file...', { id: 'rename' });
+      await apiService.renameFile(fileDate, newName);
+      toast.success('File rinominato con successo', { id: 'rename' });
       await loadFiles();
-      
     } catch (error) {
-      toast.error(`Errore nell'eliminazione: ${error.message}`, { id: 'delete' });
-      console.error('Delete error:', error);
+      toast.error(`Errore nella rinomina: ${error.message}`, { id: 'rename' });
+    } finally {
+      setRenamingFile(null);
+      setNewName('');
     }
   };
+
+  const sortedFiles = React.useMemo(() => {
+    const sortableFiles = [...data.uploadedFiles];
+    sortableFiles.sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      const order = sortConfig.direction === 'asc' ? 1 : -1;
+      return aValue.localeCompare(bValue) * order;
+    });
+    return sortableFiles;
+  }, [data.uploadedFiles, sortConfig]);
 
   if (loading) {
     return (
       <div className="file-upload-section">
-        <div className="loading-indicator">
-          <div className="loading-spinner"></div>
-          Caricamento file dal server...
-        </div>
+        <div className="loading-indicator">Caricamento file...</div>
       </div>
     );
   }
 
   return (
     <div className="file-upload-section">
+      {mappingState && (
+        <ColumnMapper
+          mappingInfo={mappingState}
+          onConfirm={handleConfirmMapping}
+          onCancel={() => { setMappingState(null); setUploading(false); }}
+        />
+      )}
+
       <h3>📁 Carica File Mensile</h3>
       <div className="upload-area">
         <input
-          type="file"
-          id="file-upload"
-          accept=".xlsx,.xls"
-          onChange={handleFileUpload}
-          disabled={uploading}
-          className="file-input"
+          type="file" id="file-upload" accept=".xlsx,.xls"
+          onChange={handleFileUpload} disabled={uploading} className="file-input"
         />
         <label htmlFor="file-upload" className={`upload-label ${uploading ? 'uploading' : ''}`}>
           {uploading ? '⏳ Caricamento...' : '📤 Seleziona File Excel'}
@@ -389,38 +437,60 @@ const FileUpload = () => {
       </div>
       
       <div className="upload-info">
-        <p>Formato file: <code>YYYY.MM.DD Piramis Gara RUSH Inflow Agenti.xlsx</code></p>
-        <p>File supportati: .xlsx, .xls</p>
+        <p>Formato file: <code>YYYY.MM.DD NOME_FILE.xlsx</code></p>
       </div>
       
       <div className="uploaded-files">
-        <h4>File Caricati ({data.uploadedFiles.length})</h4>
-        {data.uploadedFiles.length === 0 ? (
-          <p className="no-files">Nessun file caricato sul server</p>
+        <div className="files-header">
+          <h4>File Caricati ({sortedFiles.length})</h4>
+          <div className="sort-controls">
+            <span>Ordina per:</span>
+            <button onClick={() => setSortConfig({ key: 'date', direction: 'desc' })} className={sortConfig.key === 'date' ? 'active' : ''}>Data</button>
+            <button onClick={() => setSortConfig({ key: 'name', direction: 'asc' })} className={sortConfig.key === 'name' ? 'active' : ''}>Nome</button>
+          </div>
+        </div>
+
+        {sortedFiles.length === 0 ? (
+          <p className="no-files">Nessun file caricato.</p>
         ) : (
           <div className="files-list">
-            {data.uploadedFiles.map(file => (
+            {sortedFiles.map(file => (
               <div key={file.id} className="file-item">
                 <div className="file-info">
-                  <span className="file-name">{file.name}</span>
+                  {renamingFile?.id === file.id ? (
+                    <input
+                      type="text"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onBlur={() => handleRenameFile(file.date)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleRenameFile(file.date) }}
+                      className="rename-input"
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="file-name">{file.name}</span>
+                  )}
                   {file.metadata && (
                     <div className="file-stats">
                       <span>{formatNumber(file.metadata.totalAgents)} agenti</span>
-                      <span>{formatNumber(file.metadata.totalSMs)} coordinatori</span>
-                      <span>{formatCurrency(file.metadata.totalRevenue)} fatturato</span>
+                      <span>{formatNumber(file.metadata.totalSMs)} SM</span>
+                      <span>{formatCurrency(file.metadata.totalRevenue)} fatt.</span>
                     </div>
                   )}
                 </div>
                 <span className="file-date">{file.displayDate}</span>
                 <div className="file-actions">
                   <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
+                   <button
+                    className="action-btn rename-btn"
+                    onClick={() => { setRenamingFile({ id: file.id, name: file.name }); setNewName(file.name); }}
+                    title="Rinomina"
+                  >✏️</button>
                   <button 
-                    className="delete-file-btn"
+                    className="action-btn delete-btn"
                     onClick={() => handleDeleteFile(file.date, file.name)}
-                    title="Elimina file"
-                  >
-                    🗑️
-                  </button>
+                    title="Elimina"
+                  >🗑️</button>
                 </div>
               </div>
             ))}

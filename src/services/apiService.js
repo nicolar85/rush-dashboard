@@ -219,6 +219,19 @@ class ApiService {
     });
   }
 
+  /**
+   * Rinomina un file
+   */
+  async renameFile(fileDate, newName) {
+    return await this.makeRequest('uploads/rename', {
+      method: 'POST',
+      body: JSON.stringify({
+        file_date: fileDate,
+        new_name: newName,
+      }),
+    });
+  }
+
   // ================================
   // DASHBOARD METHODS
   // ================================
