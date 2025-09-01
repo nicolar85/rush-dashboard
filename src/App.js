@@ -5,8 +5,8 @@ import toast, { Toaster } from 'react-hot-toast';
 
 // Import dei servizi
 import { apiService } from './services/apiService';
-// Import del parser Excel
-import { parseExcelFile, formatCurrency, formatNumber } from './utils/excelParser';
+// Import del parser Excel aggiornato
+import { parseExcelFile, formatCurrency, formatNumber, sortFilesByDate } from './utils/excelParser';
 import './App.css';
 
 // Context per la gestione dei dati
@@ -234,9 +234,12 @@ const FileUpload = () => {
         }
       }));
       
+      // *** FIX: Ordina i file per data nel nome, non per data upload ***
+      const sortedFiles = sortFilesByDate(processedFiles);
+      
       // Crea anche il processedData per compatibilità
       const processedData = {};
-      processedFiles.forEach(file => {
+      sortedFiles.forEach(file => {
         if (file.data) {
           processedData[file.date] = file.data;
         }
@@ -244,7 +247,7 @@ const FileUpload = () => {
       
       setData(prevData => ({
         ...prevData,
-        uploadedFiles: processedFiles,
+        uploadedFiles: sortedFiles, // ← Usa file ordinati per data
         processedData: processedData
       }));
       
@@ -275,12 +278,33 @@ const FileUpload = () => {
         return;
       }
 
-      // Parsing del file Excel
+      // Parsing del file Excel con controllo anomalie
       const parseResult = await parseExcelFile(file);
       
       if (!parseResult.success) {
-        toast.error(`Errore nel parsing: ${parseResult.error}`, { id: 'upload' });
-        return;
+        if (parseResult.needsMapping) {
+          // *** NUOVA GESTIONE: Chiedi mappatura manuale ***
+          const shouldProceed = window.confirm(
+            `⚠️ ANOMALIE RILEVATE NEL FILE ⚠️\n\n` +
+            `Alcune colonne non sono state trovate automaticamente:\n` +
+            `${parseResult.details.missingHeaders.join(', ')}\n\n` +
+            `Al momento non è implementata la mappatura manuale.\n` +
+            `Vuoi procedere comunque? I dati mancanti saranno a zero.`
+          );
+          
+          if (!shouldProceed) {
+            toast.error('Upload annullato dall\'utente', { id: 'upload' });
+            return;
+          }
+          
+          // Per ora procedi con mappatura parziale
+          toast.warning('Procedendo con mappatura parziale - alcuni dati potrebbero essere errati', { id: 'upload' });
+          // TODO: Implementare interfaccia di mappatura manuale
+          return; // Per ora blocca
+        } else {
+          toast.error(`Errore nel parsing: ${parseResult.error}`, { id: 'upload' });
+          return;
+        }
       }
 
       const { data: parsedData } = parseResult;
@@ -435,14 +459,14 @@ const FileUpload = () => {
 const Dashboard = () => {
   const { data } = useData();
   
-  // Calcola le statistiche dai dati caricati
+  // Calcola le statistiche dai dati caricati (usa il file più recente per data, non per upload)
   const stats = React.useMemo(() => {
     if (data.uploadedFiles.length === 0) {
       return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0 };
     }
     
-    // Prendi il file più recente
-    const latestFile = data.uploadedFiles[0];
+    // *** FIX: I file sono già ordinati per data nel nome dal parser ***
+    const latestFile = data.uploadedFiles[0]; // Il primo è il più recente per data
     if (!latestFile.metadata) {
       return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0 };
     }
