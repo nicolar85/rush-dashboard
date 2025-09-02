@@ -1,162 +1,147 @@
-import React, { useState, useMemo } from 'react';
-import { DataGrid, GridToolbar } from '@mui/x-data-grid';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../App';
-import { formatCurrency, formatNumber } from '../utils/excelParser';
+import AgentCard from './AgentCard';
+import AgentModal from './AgentModal';
+import { Slider, Button, ButtonGroup } from '@mui/material';
+import { formatCurrency } from '../utils/excelParser';
 import './Agents.css';
 
 const Agents = () => {
   const { data, selectedFileDate, setSelectedFileDate } = useData();
   const [loading, setLoading] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState(null);
 
-  const { agents, currentFile } = useMemo(() => {
+  // Gestione stato filtri
+  const [filters, setFilters] = useState({
+    searchTerm: '',
+    selectedSm: '',
+    inflowRange: [0, 10000],
+    activePreset: null,
+  });
+
+  // Sincronizzazione con URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const newFilters = {
+      searchTerm: params.get('search') || '',
+      selectedSm: params.get('sm') || '',
+      inflowRange: [
+        Number(params.get('minInflow')) || 0,
+        Number(params.get('maxInflow')) || 10000,
+      ],
+      activePreset: params.get('preset') || null,
+    };
+    setFilters(newFilters);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filters.searchTerm) params.set('search', filters.searchTerm);
+    if (filters.selectedSm) params.set('sm', filters.selectedSm);
+    if (filters.inflowRange[0] > 0) params.set('minInflow', filters.inflowRange[0]);
+    if (filters.inflowRange[1] < 10000) params.set('maxInflow', filters.inflowRange[1]);
+    if (filters.activePreset) params.set('preset', filters.activePreset);
+
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+  }, [filters]);
+
+  const { agents, currentFile, smList, maxInflow } = useMemo(() => {
     if (!selectedFileDate || data.uploadedFiles.length === 0) {
-      return { agents: [], currentFile: null };
+      return { agents: [], currentFile: null, smList: [], maxInflow: 10000 };
     }
-
     const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
     if (!file || !file.data || !file.data.agents) {
-      return { agents: [], currentFile: null };
+      return { agents: [], currentFile: null, smList: [], maxInflow: 10000 };
     }
 
-    // Aggiungi un id univoco per ogni riga, necessario per la DataGrid
     const agentsWithId = file.data.agents.map((agent, index) => ({
-      id: `${file.date}-${agent.numero}-${index}`,
-      ...agent,
+      id: `${file.date}-${agent.numero}-${index}`, ...agent,
     }));
 
-    return { agents: agentsWithId, currentFile: file };
-  }, [data.uploadedFiles, selectedFileDate]);
+    const uniqueSmList = [...new Set(agentsWithId.map(a => a.sm).filter(Boolean))].sort();
+    const maxInflowValue = Math.max(...agentsWithId.map(a => a.inflowTotale || 0), 10000);
 
-  const handlePeriodChange = (e) => {
-    const newFileDate = e.target.value;
-    setLoading(true);
-    setTimeout(() => {
-      setSelectedFileDate(newFileDate);
-      setLoading(false);
-    }, 500);
+    let filteredAgents = agentsWithId.filter(agent =>
+      agent.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) &&
+      (filters.selectedSm === '' || agent.sm === filters.selectedSm) &&
+      (agent.inflowTotale || 0) >= filters.inflowRange[0] &&
+      (agent.inflowTotale || 0) <= filters.inflowRange[1]
+    );
+
+    return { agents: filteredAgents, currentFile: file, smList: uniqueSmList, maxInflow: maxInflowValue };
+  }, [data.uploadedFiles, selectedFileDate, filters]);
+
+  const handleFilterChange = (name, value) => {
+    setFilters(prev => ({ ...prev, [name]: value, activePreset: null }));
   };
 
-  // Definizione delle colonne per la DataGrid
-  const columns = [
-    { field: 'numero', headerName: 'N.', width: 70, type: 'number' },
-    { field: 'nome', headerName: 'Agente', width: 200,
-      renderCell: (params) => (
-        <div className="agent-cell">
-          <div className="agent-name">{params.value}</div>
-          <div className="agent-sm">{params.row.sm}</div>
-        </div>
-      )
-    },
-    { field: 'sm', headerName: 'SM', width: 150 },
-    {
-      field: 'fatturatoComplessivo',
-      headerName: 'Fatturato',
-      width: 130,
-      type: 'number',
-      valueGetter: (params) => params.row.fatturato?.complessivo || 0,
-      renderCell: (params) => (
-        <div className="currency-cell">{formatCurrency(params.value)}</div>
-      ),
-    },
-    {
-      field: 'inflowTotale',
-      headerName: 'Inflow',
-      width: 130,
-      type: 'number',
-      renderCell: (params) => (
-        <div className="currency-cell highlight">{formatCurrency(params.value)}</div>
-      ),
-    },
-    {
-      field: 'nuoviClienti',
-      headerName: 'Nuovi Clienti',
-      width: 120,
-      type: 'number',
-      renderCell: (params) => (
-        <div className="number-cell">{formatNumber(params.value)}</div>
-      ),
-    },
-    {
-      field: 'fastwebEnergia',
-      headerName: 'Fastweb',
-      width: 100,
-      type: 'number',
-      renderCell: (params) => (
-        <div className="number-cell">{params.value > 0 ? formatNumber(params.value) : '--'}</div>
-      ),
-    },
-    {
-      field: 'calculatedPezziTotali',
-      headerName: 'Pezzi Totali',
-      width: 120,
-      type: 'number',
-      valueGetter: (params) => params.row.totaliProdotti?.pezziTotali || 0,
-      renderCell: (params) => (
-        <div className="number-cell">{formatNumber(params.value)}</div>
-      ),
-    },
-    { field: 'distretto', headerName: 'Distretto', width: 130 },
-    { field: 'tipologia', headerName: 'Tipologia', width: 120 },
-  ];
+  const handlePresetFilter = (preset) => {
+    let newFilters = { ...filters, searchTerm: '', selectedSm: '', activePreset: preset };
+    switch (preset) {
+      case 'top':
+        newFilters.inflowRange = [Math.floor(maxInflow * 0.5), maxInflow];
+        break;
+      case 'underperforming':
+        newFilters.inflowRange = [0, Math.floor(maxInflow * 0.1)];
+        break;
+      case 'new':
+        // Questo filtro potrebbe richiedere un campo "nuovo" nell'agent, per ora filtro per inflow basso
+        newFilters.inflowRange = [0, 100];
+        break;
+      default:
+        newFilters.inflowRange = [0, maxInflow];
+        newFilters.activePreset = null;
+    }
+    setFilters(newFilters);
+  };
 
   return (
     <div className="agents-container">
       <div className="agents-header">
         <h2>👥 Dettaglio Agenti</h2>
-        {data.uploadedFiles.length > 0 && currentFile ? (
-          <div className="period-selector">
-            <label htmlFor="agent-period-select">Periodo di Riferimento:</label>
-            <select
-              id="agent-period-select"
-              value={currentFile.date}
-              onChange={handlePeriodChange}
-              disabled={loading}
-            >
-              {data.uploadedFiles.map(file => (
-                <option key={file.id} value={file.date}>
-                  {file.displayDate}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Period Selector */}
+      </div>
+
+      <div className="filters-container">
+        <div className="filter-item search-filter">
+          <input type="text" placeholder="Cerca per nome..." value={filters.searchTerm}
+            onChange={(e) => handleFilterChange('searchTerm', e.target.value)} className="search-bar" />
+        </div>
+        <div className="filter-item sm-filter">
+          <select value={filters.selectedSm} onChange={(e) => handleFilterChange('selectedSm', e.target.value)} className="sm-selector">
+            <option value="">Tutti i Coordinatori</option>
+            {smList.map(sm => <option key={sm} value={sm}>{sm}</option>)}
+          </select>
+        </div>
+        <div className="filter-item range-filter">
+          <label>Range Inflow</label>
+          <Slider value={filters.inflowRange} onChange={(e, val) => handleFilterChange('inflowRange', val)}
+            valueLabelDisplay="auto" min={0} max={maxInflow} step={100}
+            valueLabelFormat={value => formatCurrency(value)}
+          />
+        </div>
+        <div className="filter-item preset-filters">
+           <ButtonGroup variant="outlined" aria-label="outlined button group">
+            <Button onClick={() => handlePresetFilter('top')} color={filters.activePreset === 'top' ? 'primary' : 'inherit'}>Top</Button>
+            <Button onClick={() => handlePresetFilter('underperforming')} color={filters.activePreset === 'underperforming' ? 'primary' : 'inherit'}>In Difficoltà</Button>
+            <Button onClick={() => handlePresetFilter('new')} color={filters.activePreset === 'new' ? 'primary' : 'inherit'}>Nuovi</Button>
+            <Button onClick={() => handlePresetFilter(null)}>Reset</Button>
+          </ButtonGroup>
+        </div>
+      </div>
+
+      <div className={`agents-grid ${loading ? 'loading' : ''}`}>
+        {agents.length > 0 ? (
+          agents.map(agent => <AgentCard key={agent.id} agent={agent} onClick={setSelectedAgent} />)
         ) : (
-          <p className="current-period">Nessun periodo disponibile</p>
+          <div className="no-data-message">
+            <h3>Nessun agente trovato.</h3>
+            <p>Prova a modificare i filtri.</p>
+          </div>
         )}
       </div>
 
-      <div className={`data-grid-container ${loading ? 'loading' : ''}`}>
-        {agents.length > 0 ? (
-          <DataGrid
-            rows={agents}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            autoHeight
-            components={{
-              Toolbar: GridToolbar,
-            }}
-            componentsProps={{
-              toolbar: {
-                showQuickFilter: true,
-                quickFilterProps: { debounceMs: 500 },
-              },
-            }}
-            initialState={{
-              sorting: {
-                sortModel: [{ field: 'inflowTotale', sort: 'desc' }],
-              },
-            }}
-            getRowClassName={(params) =>
-              `agent-row ${params.row.inflowTotale > 0 ? 'positive-inflow' : ''}`
-            }
-          />
-        ) : (
-          <div className="no-data-message">
-            <h3>Nessun dato disponibile per il periodo selezionato.</h3>
-            <p>Carica un file o seleziona un altro periodo.</p>
-          </div>
-        )}
-      </div>
+      {selectedAgent && <AgentModal agent={selectedAgent} allData={data} onClose={() => setSelectedAgent(null)} />}
     </div>
   );
 };
