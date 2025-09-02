@@ -486,6 +486,7 @@ const FileUpload = ({ openDialog }) => {
 // Componente Dashboard principale - AGGIORNATO
 const Dashboard = () => {
   const { data, selectedFileDate, setSelectedFileDate } = useData();
+  const [loading, setLoading] = useState(false);
   
   // Effetto per gestire la selezione del periodo
   React.useEffect(() => {
@@ -521,6 +522,15 @@ const Dashboard = () => {
     };
   }, [data.uploadedFiles, selectedFileDate]);
   
+  const handlePeriodChange = (e) => {
+    const newFileDate = e.target.value;
+    setLoading(true);
+    setTimeout(() => {
+      setSelectedFileDate(newFileDate);
+      setLoading(false);
+    }, 500); // Simula un caricamento per l'effetto di transizione
+  };
+
   return (
     <div className="dashboard-content">
       <div className="dashboard-header">
@@ -531,7 +541,7 @@ const Dashboard = () => {
             <select
               id="period-select"
               value={currentFile.date}
-              onChange={(e) => setSelectedFileDate(e.target.value)}
+              onChange={handlePeriodChange}
             >
               {data.uploadedFiles.map(file => (
                 <option key={file.id} value={file.date}>
@@ -546,39 +556,39 @@ const Dashboard = () => {
       </div>
       
       <div className="stats-grid">
-        <div className="stat-card">
+        <div className="stat-card" style={{ animationDelay: '100ms' }}>
           <h3>File Caricati</h3>
-          <div className="stat-number">{data.uploadedFiles.length}</div>
+          <div className={`stat-number ${loading ? 'loading' : ''}`}>{data.uploadedFiles.length}</div>
         </div>
         
-        <div className="stat-card">
+        <div className="stat-card" style={{ animationDelay: '200ms' }}>
           <h3>Totale Agenti</h3>
-          <div className="stat-number">{formatNumber(stats.totalAgents)}</div>
+          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalAgents)}</div>
         </div>
         
-        <div className="stat-card">
+        <div className="stat-card" style={{ animationDelay: '300ms' }}>
           <h3>SM Attivi</h3>
-          <div className="stat-number">{formatNumber(stats.totalSMs)}</div>
+          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalSMs)}</div>
         </div>
         
-        <div className="stat-card">
+        <div className="stat-card" style={{ animationDelay: '400ms' }}>
           <h3>Fatturato Totale</h3>
-          <div className="stat-number">{formatCurrency(stats.totalRevenue)}</div>
+          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalRevenue)}</div>
         </div>
         
-        <div className="stat-card">
+        <div className="stat-card" style={{ animationDelay: '500ms' }}>
           <h3>Inflow Totale</h3>
-          <div className="stat-number">{formatCurrency(stats.totalInflow)}</div>
+          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalInflow)}</div>
         </div>
         
-        <div className="stat-card">
+        <div className="stat-card" style={{ animationDelay: '600ms' }}>
           <h3>Nuovi Clienti</h3>
-          <div className="stat-number">{formatNumber(stats.totalNewClients)}</div>
+          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalNewClients)}</div>
         </div>
         
-        <div className="stat-card">
+        <div className="stat-card" style={{ animationDelay: '700ms' }}>
           <h3>Contratti Fastweb</h3>
-          <div className="stat-number">
+          <div className={`stat-number ${loading ? 'loading' : ''}`}>
             {stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--'}
           </div>
           {stats.totalFastweb === 0 && (

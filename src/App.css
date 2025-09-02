@@ -252,38 +252,54 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 28px;
   margin-bottom: 40px;
 }
 
 .stat-card {
   background: var(--surface-color);
-  padding: 24px;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
+  padding: 28px;
+  border-radius: 12px; /* Aumentato per un look più morbido */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
   text-align: center;
-  transition: var(--transition);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.5s ease-out forwards;
 }
 
 .stat-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  box-shadow: 0 10px 15px rgba(0,0,0,0.07), 0 4px 6px rgba(0,0,0,0.1);
+  transform: translateY(-5px);
 }
 
 .stat-card h3 {
   color: var(--text-secondary);
   font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 12px;
+  font-weight: 600; /* Leggermente più bold */
+  margin-bottom: 16px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px; /* Aumentata spaziatura */
 }
 
 .stat-number {
-  font-size: 2.5rem;
+  font-size: 2.8rem; /* Leggermente più grande */
   font-weight: 700;
   color: var(--primary-color);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.stat-number.loading {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .welcome-message {
@@ -311,6 +327,8 @@ body {
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   margin-top: 40px;
+  animation: fadeInUp 0.5s ease-out 0.8s forwards; /* Aggiunto ritardo */
+  opacity: 0;
 }
 
 .quick-insights h3 {
@@ -330,6 +348,12 @@ body {
   padding: 20px;
   border-radius: var(--border-radius);
   border-left: 4px solid var(--primary-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.insight-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 7px 10px rgba(0,0,0,0.05);
 }
 
 .insight-card h4 {
@@ -610,6 +634,17 @@ body {
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+
+  .content-container {
+    padding: 24px;
+  }
+}
+
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
@@ -656,7 +691,7 @@ body {
   }
   
   .main-content {
-    padding-bottom: 80px;
+    padding-bottom: 100px; /* Aumentato per più spazio sopra la barra di navigazione mobile */
   }
   
   .content-container {
@@ -664,8 +699,8 @@ body {
   }
   
   .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adattato per mobile */
+    gap: 20px;
   }
   
   .login-container {
