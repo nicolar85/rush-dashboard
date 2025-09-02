@@ -178,18 +178,14 @@ const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout, openD
   );
 };
 
-// Componente File Upload
+// Componente File Upload - VERSIONE AGGIORNATA CON PARSER DINAMICO
 const FileUpload = ({ openDialog }) => {
   const { data, setData } = useData();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Carica file all'avvio
-  React.useEffect(() => {
-    loadFiles();
-  }, []);
-
-  const loadFiles = async () => {
+  // *** FIX: useCallback per loadFiles per risolvere dependency warning ***
+  const loadFiles = React.useCallback(async () => {
     try {
       const files = await apiService.loadFiles();
       
@@ -261,9 +257,15 @@ const FileUpload = ({ openDialog }) => {
       console.error('Load files error:', error);
     } finally {
       setLoading(false);
-    }
-  };
+    } 
+  }, [setData]); // ← FIX: Aggiungi dipendenza
 
+  // *** FIX: useEffect ora ha tutte le dipendenze corrette ***
+  React.useEffect(() => {
+    loadFiles();
+  }, [loadFiles]);
+
+  // *** AGGIORNATO: handleFileUpload per parser dinamico ***
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -283,57 +285,67 @@ const FileUpload = ({ openDialog }) => {
         return;
       }
 
-      // Parsing del file Excel con controllo anomalie
+      // *** NUOVO: Parsing dinamico con gestione anomalie ***
       const parseResult = await parseExcelFile(file);
       
       if (!parseResult.success) {
-        if (parseResult.needsMapping) {
-          // *** NUOVA GESTIONE: Chiedi mappatura manuale ***
-          openDialog(
-            'Anomalie Rilevate',
-            `⚠️ ANOMALIE RILEVATE NEL FILE ⚠️\n\n` +
-            `Alcune colonne non sono state trovate automaticamente:\n` +
-            `${parseResult.details.missingHeaders.join(', ')}\n\n` +
-            `Al momento non è implementata la mappatura manuale.\n` +
-            `Vuoi procedere comunque? I dati mancanti saranno a zero.`,
-            () => {
-              toast.warning('La mappatura manuale non è ancora implementata. Impossibile procedere.', { id: 'upload' });
-            },
-            () => {
-              toast.error('Upload annullato dall\'utente', { id: 'upload' });
-            }
-          );
-          return; // Per ora blocca
-        } else {
-          toast.error(`Errore nel parsing: ${parseResult.error}`, { id: 'upload' });
-          return;
-        }
+        toast.error(`❌ Errore nel parsing del file: ${parseResult.error}`, { id: 'upload' });
+        return;
+      }
+
+      // *** NUOVO: Gestione warnings per campi opzionali mancanti ***
+      if (parseResult.data.metadata.warnings && parseResult.data.metadata.warnings.length > 0) {
+        const warningCount = parseResult.data.metadata.warnings.length;
+        const warningFields = parseResult.data.metadata.warnings.map(w => w.field).join(', ');
+        
+        toast.success(
+          `⚡ File parsato con successo!\n` +
+          `⚠️ ${warningCount} campi opzionali impostati a zero: ${warningFields}\n` +
+          `Questo è normale per prodotti non disponibili in certi periodi.`,
+          { id: 'upload', duration: 6000 }
+        );
       }
 
       const { data: parsedData } = parseResult;
-      const fileDate = parsedData.fileInfo.dateInfo.dateString;
+      const fileDate = parsedData.metadata.dateInfo.dateString;
 
       const uploadFile = async () => {
+        // *** AGGIORNATO: Usa la nuova struttura dati dal parser dinamico ***
         const fileData = {
           name: file.name,
           date: fileDate,
-          displayDate: parsedData.fileInfo.dateInfo.displayDate,
+          displayDate: `${parsedData.metadata.dateInfo.month}/${parsedData.metadata.dateInfo.year}`,
           size: file.size,
           data: parsedData,
           metadata: {
             totalAgents: parsedData.metadata.totalAgents,
             totalSMs: parsedData.metadata.totalSMs,
-            parseDate: new Date().toISOString()
+            totalRevenue: parsedData.totals.fatturato,
+            totalInflow: parsedData.totals.inflow,
+            totalNewClients: parsedData.totals.nuoviClienti,
+            totalFastweb: parsedData.totals.fastwebEnergia || 0, // ← Gestisce se non esiste
+            parseDate: new Date().toISOString(),
+            warnings: parseResult.data.metadata.warnings
           }
         };
 
         const result = await apiService.saveFile(fileData);
 
         if (result.success) {
+          // Success feedback con dettagli migliorati
+          const agentsCount = parsedData.metadata.totalAgents;
+          const smCount = parsedData.metadata.totalSMs;
+          const totalFatturato = parsedData.totals.fatturato;
+          const totalInflow = parsedData.totals.inflow;
+          
           const actionText = result.action === 'updated' ? 'aggiornato' : 'caricato';
           toast.success(
-            `File ${actionText} con successo! ${result.stats?.total_agents || 0} agenti importati`,
-            { id: 'upload' }
+            `✅ File ${actionText} con successo!\n` +
+            `👥 ${agentsCount} agenti importati\n` +
+            `👔 ${smCount} coordinatori\n` +
+            `💰 ${formatCurrency(totalFatturato)} fatturato\n` +
+            `⚡ ${formatCurrency(totalInflow)} inflow`,
+            { id: 'upload', duration: 5000 }
           );
 
           await loadFiles();
@@ -342,14 +354,15 @@ const FileUpload = ({ openDialog }) => {
         }
       };
 
-      // Controlla duplicati localmente
+      // Controlla duplicati basandosi sulla data nel nome file
       const existingFile = data.uploadedFiles.find(f => f.date === fileDate);
       
       if (existingFile) {
         toast.dismiss('upload');
+        const monthYear = `${parsedData.metadata.dateInfo.month}/${parsedData.metadata.dateInfo.year}`;
         openDialog(
           'Sovrascrivi file',
-          `Esiste già un file per ${parsedData.fileInfo.dateInfo.displayDate}. Vuoi sovrascriverlo?`,
+          `⚠️ ATTENZIONE!\n\nEsiste già un file per ${monthYear}:\n"${existingFile.name}"\n\nVuoi sovrascriverlo?`,
           () => {
             toast.loading('Aggiornamento file...', { id: 'upload' });
             uploadFile();
@@ -361,7 +374,7 @@ const FileUpload = ({ openDialog }) => {
       }
 
     } catch (error) {
-      toast.error(`Errore: ${error.message || 'Caricamento fallito'}`, { id: 'upload' });
+      toast.error(`❌ Errore: ${error.message || 'Caricamento fallito'}`, { id: 'upload' });
       console.error('Upload error:', error);
     } finally {
       setUploading(false);
@@ -423,6 +436,9 @@ const FileUpload = ({ openDialog }) => {
       <div className="upload-info">
         <p>Formato file: <code>YYYY.MM.DD Piramis Gara RUSH Inflow Agenti.xlsx</code></p>
         <p>File supportati: .xlsx, .xls</p>
+        <p className="parser-info">
+          🧠 <strong>Parser Dinamico:</strong> Si adatta automaticamente alle variazioni tra file diversi
+        </p>
       </div>
       
       <div className="uploaded-files">
@@ -440,6 +456,10 @@ const FileUpload = ({ openDialog }) => {
                       <span>{formatNumber(file.metadata.totalAgents)} agenti</span>
                       <span>{formatNumber(file.metadata.totalSMs)} coordinatori</span>
                       <span>{formatCurrency(file.metadata.totalRevenue)} fatturato</span>
+                      <span>{formatCurrency(file.metadata.totalInflow)} inflow</span>
+                      {file.metadata.totalFastweb > 0 && (
+                        <span className="fastweb-badge">⚡ {formatNumber(file.metadata.totalFastweb)} Fastweb</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -463,20 +483,20 @@ const FileUpload = ({ openDialog }) => {
   );
 };
 
-// Componente Dashboard principale
+// Componente Dashboard principale - AGGIORNATO
 const Dashboard = () => {
   const { data } = useData();
   
-  // Calcola le statistiche dai dati caricati (usa il file più recente per data, non per upload)
+  // *** FIX: Calcola le statistiche dai dati caricati (usa il file più recente per data, non per upload) ***
   const stats = React.useMemo(() => {
     if (data.uploadedFiles.length === 0) {
-      return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0 };
+      return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 };
     }
     
     // *** FIX: I file sono già ordinati per data nel nome dal parser ***
     const latestFile = data.uploadedFiles[0]; // Il primo è il più recente per data
     if (!latestFile.metadata) {
-      return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0 };
+      return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 };
     }
     
     return {
@@ -485,7 +505,7 @@ const Dashboard = () => {
       totalRevenue: latestFile.metadata.totalRevenue,
       totalInflow: latestFile.metadata.totalInflow,
       totalNewClients: latestFile.metadata.totalNewClients,
-      totalFastweb: latestFile.metadata.totalFastweb
+      totalFastweb: latestFile.metadata.totalFastweb || 0 // ← Gestisce se non esiste
     };
   }, [data.uploadedFiles]);
   
@@ -533,7 +553,12 @@ const Dashboard = () => {
         
         <div className="stat-card">
           <h3>Contratti Fastweb</h3>
-          <div className="stat-number">{formatNumber(stats.totalFastweb)}</div>
+          <div className="stat-number">
+            {stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--'}
+          </div>
+          {stats.totalFastweb === 0 && (
+            <div className="stat-note">Non disponibile nel periodo</div>
+          )}
         </div>
       </div>
       
@@ -550,11 +575,18 @@ const Dashboard = () => {
           <div className="insights-grid">
             <div className="insight-card">
               <h4>File Più Recente</h4>
-              <p>Caricato: <strong>{data.uploadedFiles[0]?.displayDate}</strong></p>
+              <p>Periodo: <strong>{data.uploadedFiles[0]?.displayDate}</strong></p>
+              <p className="insight-detail">Ordinamento per data nel nome file</p>
             </div>
             <div className="insight-card">
               <h4>Media per Agente</h4>
               <p>Fatturato medio: <strong>{formatCurrency(stats.totalRevenue / (stats.totalAgents || 1))}</strong></p>
+              <p>Inflow medio: <strong>{formatCurrency(stats.totalInflow / (stats.totalAgents || 1))}</strong></p>
+            </div>
+            <div className="insight-card">
+              <h4>Performance Generale</h4>
+              <p>Rapporto Inflow/Fatturato: <strong>{((stats.totalInflow / stats.totalRevenue) * 100).toFixed(1)}%</strong></p>
+              <p>Nuovi clienti per agente: <strong>{formatNumber(stats.totalNewClients / (stats.totalAgents || 1))}</strong></p>
             </div>
           </div>
         </div>
@@ -728,6 +760,7 @@ function App() {
             style: {
               background: '#363636',
               color: '#fff',
+              maxWidth: '500px', // ← Più spazio per i messaggi dettagliati
             },
             success: {
               duration: 3000,
