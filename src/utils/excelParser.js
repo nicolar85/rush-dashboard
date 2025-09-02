@@ -161,6 +161,67 @@ function mapHeaders(worksheet, headerRow) {
 }
 
 /**
+ * Crea suggerimenti per mappatura interattiva
+ */
+function createInteractiveMapping(missingHeaders, foundHeaders) {
+  const suggestions = {};
+  
+  for (const missingHeader of missingHeaders) {
+    const possibleMatches = [];
+    
+    // Cerca corrispondenze fuzzy negli header trovati
+    for (const [column, headerText] of Object.entries(foundHeaders)) {
+      const similarity = calculateStringSimilarity(
+        missingHeader.toLowerCase().replace(/_/g, ' '), 
+        headerText.toLowerCase()
+      );
+      
+      if (similarity > 0.3) { // Soglia di similarità
+        possibleMatches.push({
+          column,
+          headerText,
+          similarity
+        });
+      }
+    }
+    
+    // Ordina per similarità
+    possibleMatches.sort((a, b) => b.similarity - a.similarity);
+    suggestions[missingHeader] = possibleMatches.slice(0, 3); // Top 3 suggerimenti
+  }
+  
+  return suggestions;
+}
+
+/**
+ * Calcola similarità tra stringhe (algoritmo Levenshtein normalizzato)
+ */
+function calculateStringSimilarity(str1, str2) {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      const substitutionCost = str1[j - 1] === str2[i - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i][j - 1] + 1, // deletion
+        matrix[i - 1][j] + 1, // insertion
+        matrix[i - 1][j - 1] + substitutionCost // substitution
+      );
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
+/**
  * Pulisce e normalizza i valori delle celle
  */
 function cleanCellValue(cell, expectedType = 'auto') {
@@ -238,92 +299,125 @@ function parseAgentRow(worksheet, rowIndex, headerMapping) {
     adsl: getColumnValue('FATTURATO_ADSL', 'number'),
     ou: getColumnValue('FATTURATO_OU', 'number'),
     oa: getColumnValue('FATTURATO_OA', 'number'),
-    serviziDigitali: getColumnValue('FATTURATO_SERVIZI_DIGITALI', 'number')
+    serviziDigitali: getColumnValue('FATTURATO_SERVIZI_DIGITALI', 'number'),
+    complessivo: getColumnValue('FATTURATO_COMPLESSIVO', 'number'),
+    rush: getColumnValue('FATTURATO_RUSH', 'number') // ← COLONNA CORRETTA
   };
   
   // Metriche principali
-  agent.fatturato.complessivo = getColumnValue('FATTURATO_COMPLESSIVO', 'number');
   agent.nuoviClienti = getColumnValue('NUOVO_CLIENTE', 'number');
   agent.fastwebEnergia = getColumnValue('FASTWEB_ENERGIA', 'number');
-  
-  // *** FIX IMPORTANTE: Usa FATTURATO_RUSH invece di colonna fissa ***
-  agent.inflowTotale = getColumnValue('FATTURATO_RUSH', 'number');
-  
-  // Calcola totali prodotti
-  agent.totaliProdotti = {
-    pezziTotali: Object.values(agent.prodotti).reduce((sum, val) => sum + val, 0),
-    fatturatoTotale: agent.fatturato.complessivo
-  };
   
   return agent;
 }
 
 /**
- * Crea una mappatura interattiva per colonne mancanti
+ * Funzione per parsare i dati usando una mappatura personalizzata/manuale
+ * Viene chiamata quando l'utente specifica manualmente le corrispondenze delle colonne
  */
-function createInteractiveMapping(missingHeaders, foundHeaders) {
-  const suggestions = {};
-  
-  for (const missing of missingHeaders) {
-    const possibleNames = HEADER_NAMES_MAPPING[missing] || [];
-    const suggestions_for_missing = [];
+async function parseWithCustomMapping(worksheet, dateInfo, headerRow, manualMapping) {
+  try {
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+    const agents = [];
+    const smStats = new Map();
     
-    // Cerca header simili
-    for (const [column, headerText] of Object.entries(foundHeaders)) {
-      for (const possibleName of possibleNames) {
-        const similarity = calculateSimilarity(headerText, possibleName);
-        if (similarity > 0.3) { // Soglia di similarità
-          suggestions_for_missing.push({
-            column,
-            headerText,
-            similarity
-          });
+    // Usa la mappatura manuale fornita invece di quella automatica
+    const headerMapping = manualMapping || {};
+    
+    // Parsa ogni riga di dati (dopo la riga header)
+    for (let row = headerRow + 1; row <= range.e.r; row++) {
+      try {
+        // Controlla se la riga è vuota (nessun agente)
+        const agentNameCell = worksheet[XLSX.utils.encode_cell({r: row, c: 0})];
+        if (!agentNameCell || !agentNameCell.v) continue;
+        
+        // Parsa la riga usando la mappatura personalizzata
+        const agent = parseAgentRow(worksheet, row, headerMapping);
+        
+        // Validazione base
+        if (!agent.nome || agent.nome.trim() === '') continue;
+        
+        // Calcola i totali
+        agent.totaliProdotti = {
+          pezziTotali: Object.values(agent.prodotti).reduce((sum, val) => sum + val, 0)
+        };
+        
+        // CORREZIONE: Usa la colonna corretta per inflow/rush
+        agent.inflowTotale = agent.fatturato.rush || 0; // Usa colonna rush come inflow
+        
+        // Aggiungi info temporale
+        agent.mese = dateInfo.month;
+        agent.anno = dateInfo.year;
+        agent.dataFile = dateInfo.dateString;
+        
+        agents.push(agent);
+        
+        // Statistiche per SM
+        if (agent.sm && agent.sm.trim() !== '') {
+          if (!smStats.has(agent.sm)) {
+            smStats.set(agent.sm, {
+              nome: agent.sm,
+              agenti: [],
+              totali: {
+                fatturato: 0,
+                inflow: 0,
+                nuoviClienti: 0,
+                fastweb: 0,
+                pezzi: 0
+              }
+            });
+          }
+          
+          const smData = smStats.get(agent.sm);
+          smData.agenti.push(agent);
+          smData.totali.fatturato += agent.fatturato.complessivo;
+          smData.totali.inflow += agent.inflowTotale;
+          smData.totali.nuoviClienti += agent.nuoviClienti;
+          smData.totali.fastweb += agent.fastwebEnergia;
+          smData.totali.pezzi += agent.totaliProdotti.pezziTotali;
         }
+        
+      } catch (error) {
+        console.warn(`Errore nel parsing riga ${row + 1}:`, error);
       }
     }
     
-    // Ordina per similarità
-    suggestions_for_missing.sort((a, b) => b.similarity - a.similarity);
-    suggestions[missing] = suggestions_for_missing.slice(0, 3); // Top 3
+    // Calcola statistiche generali
+    const totali = agents.reduce((acc, agent) => ({
+      fatturato: acc.fatturato + agent.fatturato.complessivo,
+      inflow: acc.inflow + agent.inflowTotale,
+      nuoviClienti: acc.nuoviClienti + agent.nuoviClienti,
+      fastweb: acc.fastweb + agent.fastwebEnergia,
+      pezzi: acc.pezzi + agent.totaliProdotti.pezziTotali
+    }), { fatturato: 0, inflow: 0, nuoviClienti: 0, fastweb: 0, pezzi: 0 });
+    
+    // Converti smStats in array e ordina per fatturato
+    const smRanking = Array.from(smStats.values())
+      .sort((a, b) => b.totali.fatturato - a.totali.fatturato);
+    
+    return {
+      success: true,
+      data: {
+        agents: agents.sort((a, b) => b.fatturato.complessivo - a.fatturato.complessivo),
+        smRanking,
+        totali,
+        metadata: {
+          totalAgents: agents.length,
+          totalSMs: smStats.size,
+          headerRow,
+          dataRows: agents.length,
+          headerMapping: manualMapping
+        }
+      }
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      details: error
+    };
   }
-  
-  return suggestions;
-}
-
-/**
- * Calcola similarità tra due stringhe (algoritmo semplificato)
- */
-function calculateSimilarity(str1, str2) {
-  const longer = str1.length > str2.length ? str1 : str2;
-  const shorter = str1.length > str2.length ? str2 : str1;
-  
-  if (longer.length === 0) return 1.0;
-  
-  const editDistance = levenshteinDistance(longer, shorter);
-  return (longer.length - editDistance) / longer.length;
-}
-
-/**
- * Calcola distanza di Levenshtein
- */
-function levenshteinDistance(str1, str2) {
-  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-  
-  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
-  
-  for (let j = 1; j <= str2.length; j++) {
-    for (let i = 1; i <= str1.length; i++) {
-      const substitutionCost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1, // deletion
-        matrix[j - 1][i] + 1, // insertion
-        matrix[j - 1][i - 1] + substitutionCost // substitution
-      );
-    }
-  }
-  
-  return matrix[str2.length][str1.length];
 }
 
 /**
@@ -371,66 +465,70 @@ export async function parseExcelFile(file) {
           missingHeaders: headerAnalysis.missingHeaders,
           foundHeaders: headerAnalysis.foundHeaders,
           suggestions: suggestions,
-          fileName: file.name,
-          dateInfo: dateInfo
+          headerMapping: headerAnalysis.mapping
         }
       };
     }
     
-    // Parsa tutti gli agenti usando la mappatura dinamica
+    // Procedi con parsing normale usando mappatura automatica
     const agents = [];
     const smStats = new Map();
     
-    for (let rowIndex = headerRow + 1; rowIndex <= range.e.r; rowIndex++) {
-      // Controlla se la riga ha dati (verifica colonna nome agente)
-      const agentNameColumn = headerAnalysis.mapping['AGENTE'];
-      if (!agentNameColumn) continue;
-      
-      const nomeCell = worksheet[XLSX.utils.encode_cell({
-        r: rowIndex, 
-        c: columnToIndex(agentNameColumn)
-      })];
-      
-      if (!nomeCell || !nomeCell.v || nomeCell.v.toString().trim() === '') {
-        continue;
-      }
-      
+    // Parsa ogni riga di dati (dopo la riga header)  
+    for (let row = headerRow + 1; row <= range.e.r; row++) {
       try {
-        const agent = parseAgentRow(worksheet, rowIndex, headerAnalysis.mapping);
+        // Controlla se la riga è vuota (nessun agente)
+        const agentNameCell = worksheet[XLSX.utils.encode_cell({r: row, c: 0})];
+        if (!agentNameCell || !agentNameCell.v) continue;
         
-        // Salta agenti con nome vuoto o invalido
-        if (!agent.nome || agent.nome.length < 2) {
-          continue;
-        }
+        // Parsa la riga usando la mappatura automatica
+        const agent = parseAgentRow(worksheet, row, headerAnalysis.mapping);
+        
+        // Validazione base
+        if (!agent.nome || agent.nome.trim() === '') continue;
+        
+        // Calcola i totali
+        agent.totaliProdotti = {
+          pezziTotali: Object.values(agent.prodotti).reduce((sum, val) => sum + val, 0)
+        };
+        
+        // CORREZIONE: Usa la colonna corretta per inflow/rush
+        agent.inflowTotale = agent.fatturato.rush || 0; // Usa colonna rush come inflow
+        
+        // Aggiungi info temporale
+        agent.mese = dateInfo.month;
+        agent.anno = dateInfo.year;
+        agent.dataFile = dateInfo.dateString;
         
         agents.push(agent);
         
-        // Aggiorna statistiche SM
-        const smKey = agent.sm || 'Senza SM';
-        if (!smStats.has(smKey)) {
-          smStats.set(smKey, {
-            nome: smKey,
-            agenti: [],
-            totali: {
-              fatturato: 0,
-              inflow: 0,
-              nuoviClienti: 0,
-              fastweb: 0,
-              pezzi: 0
-            }
-          });
+        // Statistiche per SM
+        if (agent.sm && agent.sm.trim() !== '') {
+          if (!smStats.has(agent.sm)) {
+            smStats.set(agent.sm, {
+              nome: agent.sm,
+              agenti: [],
+              totali: {
+                fatturato: 0,
+                inflow: 0,
+                nuoviClienti: 0,
+                fastweb: 0,
+                pezzi: 0
+              }
+            });
+          }
+          
+          const smData = smStats.get(agent.sm);
+          smData.agenti.push(agent);
+          smData.totali.fatturato += agent.fatturato.complessivo;
+          smData.totali.inflow += agent.inflowTotale; // *** FIX: Usa colonna corretta ***
+          smData.totali.nuoviClienti += agent.nuoviClienti;
+          smData.totali.fastweb += agent.fastwebEnergia;
+          smData.totali.pezzi += agent.totaliProdotti.pezziTotali;
         }
         
-        const smData = smStats.get(smKey);
-        smData.agenti.push(agent);
-        smData.totali.fatturato += agent.fatturato.complessivo;
-        smData.totali.inflow += agent.inflowTotale; // *** FIX: Usa colonna corretta ***
-        smData.totali.nuoviClienti += agent.nuoviClienti;
-        smData.totali.fastweb += agent.fastwebEnergia;
-        smData.totali.pezzi += agent.totaliProdotti.pezziTotali;
-        
       } catch (error) {
-        console.warn(`Errore nel parsing riga ${rowIndex + 1}:`, error);
+        console.warn(`Errore nel parsing riga ${row + 1}:`, error);
       }
     }
     
@@ -554,7 +652,8 @@ export function sortFilesByDate(files) {
   });
 }
 
-export default {
+// Correzione dell'export per evitare l'errore ESLint
+const excelParserUtils = {
   parseExcelFile,
   parseExcelFileWithMapping,
   formatCurrency,
@@ -562,3 +661,5 @@ export default {
   calculatePercentageChange,
   sortFilesByDate
 };
+
+export default excelParserUtils;

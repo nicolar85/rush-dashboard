@@ -1,20 +1,37 @@
 /**
  * API Service per RUSH Dashboard
- * Gestisce tutte le chiamate al backend PHP
+ * Gestisce tutte le chiamate al backend PHP/MySQL
  */
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://rush.nicolaruotolo.it/api'  // 👈 IL TUO DOMINIO
-  : 'http://localhost/rush-dashboard/api';
+// ✅ SOLUZIONE: Usa sempre l'API di produzione per evitare problemi localhost
+const API_BASE_URL = 'https://rush.nicolaruotolo.it/api';
+
+// 🔄 ALTERNATIVA: Se vuoi distinguere sviluppo/produzione
+// const API_BASE_URL = process.env.NODE_ENV === 'production' 
+//   ? 'https://rush.nicolaruotolo.it/api'        // Produzione
+//   : 'https://rush.nicolaruotolo.it/api';       // Anche in sviluppo usa produzione
+
+class ApiError extends Error {
+  constructor(message, statusCode, details = null) {
+    super(message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.details = details;
+  }
+}
 
 class ApiService {
   constructor() {
     this.token = localStorage.getItem('rush_token');
     this.baseURL = API_BASE_URL;
+    
+    // 🐛 DEBUG: Mostra quale URL sta usando
+    console.log(`🔗 API URL configurata: ${this.baseURL}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   }
 
   /**
-   * Effettua una richiesta HTTP
+   * Effettua una richiesta HTTP con gestione completa degli errori
    */
   async makeRequest(endpoint, options = {}) {
     const url = `${this.baseURL}/${endpoint.replace(/^\//, '')}`;
@@ -33,6 +50,10 @@ class ApiService {
       console.log(`🚀 API Request: ${config.method || 'GET'} ${url}`);
       
       const response = await fetch(url, config);
+      
+      // 🐛 DEBUG: Mostra la risposta
+      console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
+      
       const data = await response.json();
 
       if (!response.ok) {
@@ -54,9 +75,18 @@ class ApiService {
         throw error;
       }
       
-      // Errori di rete
+      // Errori di rete o CORS
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new ApiError('Errore di connessione. Controlla la connessione internet.', 0);
+        console.error(`🌐 Network Error: Impossibile raggiungere ${url}`);
+        console.error('📋 Possibili cause:');
+        console.error('   - Server non raggiungibile');
+        console.error('   - Problemi CORS');
+        console.error('   - Connessione internet assente');
+        
+        throw new ApiError(
+          'Errore di connessione. Controlla la connessione internet.', 
+          0
+        );
       }
       
       throw new ApiError('Errore di comunicazione con il server', 0, error);
@@ -100,6 +130,8 @@ class ApiService {
    */
   async login(username, password) {
     try {
+      console.log(`🔐 Tentativo login per: ${username}`);
+      
       const response = await this.makeRequest('login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
@@ -109,6 +141,8 @@ class ApiService {
         this.setToken(response.token);
         localStorage.setItem('rush_user', JSON.stringify(response.user));
         localStorage.setItem('rush_expires', response.expires_at);
+        
+        console.log('✅ Login successful:', response.user);
         
         return {
           success: true,
@@ -120,6 +154,7 @@ class ApiService {
       throw new Error(response.error || 'Login fallito');
       
     } catch (error) {
+      console.error('❌ Login failed:', error);
       return {
         success: false,
         error: error.message
@@ -185,38 +220,98 @@ class ApiService {
   // ================================
 
   /**
-   * Carica tutti i file
+   * Carica tutti i file dal server
    */
   async loadFiles() {
-    const response = await this.makeRequest('uploads');
-    return response.files || [];
+    try {
+      const response = await this.makeRequest('uploads');
+      console.log('📁 Files loaded from server:', response.files?.length || 0);
+      return response.files || [];
+    } catch (error) {
+      console.error('❌ Error loading files:', error);
+      throw error;
+    }
   }
 
   /**
-   * Carica dati completi di un file
+   * Carica dati completi di un file specifico
    */
   async getFileData(fileDate) {
-    const response = await this.makeRequest(`file-data/${fileDate}`);
-    return response;
+    try {
+      const response = await this.makeRequest(`file-data/${fileDate}`);
+      console.log(`📊 File data loaded for ${fileDate}:`, response);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error loading file data for ${fileDate}:`, error);
+      throw error;
+    }
   }
 
   /**
-   * Salva/aggiorna un file
+   * Salva/aggiorna un file sul server
    */
   async saveFile(fileData) {
-    return await this.makeRequest('upload', {
-      method: 'POST',
-      body: JSON.stringify({ fileData }),
-    });
+    try {
+      console.log('💾 Saving file:', fileData.name, fileData.date);
+      
+      const response = await this.makeRequest('upload', {
+        method: 'POST',
+        body: JSON.stringify({ fileData }),
+      });
+      
+      console.log('✅ File saved successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error saving file:', error);
+      throw error;
+    }
   }
 
   /**
-   * Elimina un file
+   * Elimina un file dal server
    */
   async deleteFile(fileDate) {
-    return await this.makeRequest(`uploads/${fileDate}`, {
-      method: 'DELETE',
-    });
+    try {
+      console.log(`🗑️ Deleting file: ${fileDate}`);
+      
+      const response = await this.makeRequest(`uploads/${fileDate}`, {
+        method: 'DELETE',
+      });
+      
+      console.log('✅ File deleted successfully:', response);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error deleting file ${fileDate}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Carica un file Excel con FormData (per upload con file binario)
+   */
+  async uploadFile(file, parsedData) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('data', JSON.stringify(parsedData));
+      
+      console.log('📤 Uploading file:', file.name);
+      
+      const response = await this.makeRequest('upload-file', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // Non impostare Content-Type per FormData - il browser lo fa automaticamente
+          ...this.getAuthHeaders()
+        }
+      });
+      
+      console.log('✅ File uploaded successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error uploading file:', error);
+      throw error;
+    }
   }
 
   // ================================
@@ -224,17 +319,141 @@ class ApiService {
   // ================================
 
   /**
-   * Ottieni statistiche dashboard
+   * Ottieni statistiche dashboard generali
    */
   async getDashboardStats() {
-    return await this.makeRequest('stats');
+    try {
+      const response = await this.makeRequest('dashboard/stats');
+      console.log('📈 Dashboard stats loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading dashboard stats:', error);
+      throw error;
+    }
   }
+
+  /**
+   * Ottieni statistiche per un periodo specifico
+   */
+  async getStatsForPeriod(startDate, endDate) {
+    try {
+      const response = await this.makeRequest(`stats/period?start=${startDate}&end=${endDate}`);
+      console.log(`📊 Period stats loaded (${startDate} - ${endDate}):`, response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading period stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottieni ranking SM
+   */
+  async getSMRanking(fileDate = null) {
+    try {
+      const endpoint = fileDate ? `sm-ranking/${fileDate}` : 'sm-ranking';
+      const response = await this.makeRequest(endpoint);
+      console.log('🏅 SM ranking loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading SM ranking:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottieni dettagli agenti
+   */
+  async getAgentsDetails(fileDate = null) {
+    try {
+      const endpoint = fileDate ? `agents/${fileDate}` : 'agents';
+      const response = await this.makeRequest(endpoint);
+      console.log('👥 Agents details loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading agents details:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottieni analisi prodotti
+   */
+  async getProductsAnalysis(fileDate = null) {
+    try {
+      const endpoint = fileDate ? `products/${fileDate}` : 'products';
+      const response = await this.makeRequest(endpoint);
+      console.log('📦 Products analysis loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading products analysis:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottieni dati nuovi clienti
+   */
+  async getNewClientsData(fileDate = null) {
+    try {
+      const endpoint = fileDate ? `new-clients/${fileDate}` : 'new-clients';
+      const response = await this.makeRequest(endpoint);
+      console.log('🆕 New clients data loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading new clients data:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottieni dati Fastweb Energia
+   */
+  async getFastwebData(fileDate = null) {
+    try {
+      const endpoint = fileDate ? `fastweb/${fileDate}` : 'fastweb';
+      const response = await this.makeRequest(endpoint);
+      console.log('⚡ Fastweb data loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading Fastweb data:', error);
+      throw error;
+    }
+  }
+
+  // ================================
+  // USER PROFILE METHODS
+  // ================================
 
   /**
    * Ottieni profilo utente
    */
   async getUserProfile() {
-    return await this.makeRequest('profile');
+    try {
+      const response = await this.makeRequest('profile');
+      console.log('👤 User profile loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading user profile:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna profilo utente
+   */
+  async updateUserProfile(profileData) {
+    try {
+      const response = await this.makeRequest('profile', {
+        method: 'PUT',
+        body: JSON.stringify(profileData),
+      });
+      console.log('✅ User profile updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error updating user profile:', error);
+      throw error;
+    }
   }
 
   // ================================
@@ -242,26 +461,56 @@ class ApiService {
   // ================================
 
   /**
-   * Test connessione API
+   * Test connessione API (health check)
    */
   async healthCheck() {
-    return await this.makeRequest('health');
+    try {
+      const response = await this.makeRequest('health');
+      console.log('💚 API health check passed:', response);
+      return response;
+    } catch (error) {
+      console.error('❤️‍🩹 API health check failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Ottieni versione API e info sistema
+   */
+  async getSystemInfo() {
+    try {
+      const response = await this.makeRequest('system-info');
+      console.log('ℹ️ System info loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading system info:', error);
+      throw error;
+    }
   }
 
   /**
    * Cleanup sistema (solo admin)
    */
   async cleanup() {
-    return await this.makeRequest('cleanup', {
-      method: 'POST',
-    });
+    try {
+      const response = await this.makeRequest('cleanup', {
+        method: 'POST',
+      });
+      console.log('🧹 System cleanup completed:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error during system cleanup:', error);
+      throw error;
+    }
   }
 
   /**
-   * Download backup dati (client-side)
+   * Download backup dati completo (client-side)
    */
   async exportData() {
     try {
+      console.log('📥 Starting data export...');
+      
       const files = await this.loadFiles();
       const fullData = {};
       
@@ -279,7 +528,7 @@ class ApiService {
             ...fileData
           };
         } catch (error) {
-          console.warn(`Errore caricamento file ${file.file_date}:`, error);
+          console.warn(`⚠️ Errore caricamento file ${file.file_date}:`, error);
         }
       }
       
@@ -297,73 +546,108 @@ class ApiService {
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: 'application/json'
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `rush-dashboard-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
       
-      return { success: true, message: 'Export completato' };
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rush-dashboard-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('✅ Data export completed successfully');
+      return { success: true, message: 'Export completato con successo' };
       
     } catch (error) {
-      throw new ApiError('Errore durante l\'export dei dati', 0, error);
+      console.error('❌ Error during data export:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Import dati da backup JSON
+   */
+  async importData(backupFile) {
+    try {
+      console.log('📤 Starting data import...');
+      
+      const formData = new FormData();
+      formData.append('backup', backupFile);
+      
+      const response = await this.makeRequest('import', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          ...this.getAuthHeaders()
+        }
+      });
+      
+      console.log('✅ Data import completed:', response);
+      return response;
+      
+    } catch (error) {
+      console.error('❌ Error during data import:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottieni logs attività (solo admin)
+   */
+  async getActivityLogs(limit = 100, offset = 0) {
+    try {
+      const response = await this.makeRequest(`logs?limit=${limit}&offset=${offset}`);
+      console.log('📋 Activity logs loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error loading activity logs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cerca nei dati
+   */
+  async search(query, filters = {}) {
+    try {
+      const response = await this.makeRequest('search', {
+        method: 'POST',
+        body: JSON.stringify({ query, filters }),
+      });
+      console.log('🔍 Search completed:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error during search:', error);
+      throw error;
+    }
+  }
+
+  // ================================
+  // BATCH OPERATIONS
+  // ================================
+
+  /**
+   * Operazioni batch su più file
+   */
+  async batchOperation(operation, fileIds, options = {}) {
+    try {
+      const response = await this.makeRequest('batch', {
+        method: 'POST',
+        body: JSON.stringify({
+          operation,
+          fileIds,
+          options
+        }),
+      });
+      console.log(`✅ Batch operation '${operation}' completed:`, response);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error during batch operation '${operation}':`, error);
+      throw error;
     }
   }
 }
 
-/**
- * Classe per errori API personalizzati
- */
-class ApiError extends Error {
-  constructor(message, status = 0, details = null) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.details = details;
-  }
-
-  /**
-   * Controlla se è un errore di autenticazione
-   */
-  isAuthError() {
-    return this.status === 401;
-  }
-
-  /**
-   * Controlla se è un errore di permessi
-   */
-  isPermissionError() {
-    return this.status === 403;
-  }
-
-  /**
-   * Controlla se è un errore di validazione
-   */
-  isValidationError() {
-    return this.status === 400;
-  }
-
-  /**
-   * Controlla se è un errore del server
-   */
-  isServerError() {
-    return this.status >= 500;
-  }
-
-  /**
-   * Controlla se è un errore di rete
-   */
-  isNetworkError() {
-    return this.status === 0;
-  }
-}
-
-// Esporta istanza singleton
+// Crea istanza singleton
 export const apiService = new ApiService();
-export { ApiError };
-
-// Esporta anche la classe per testing
-export default ApiService;
