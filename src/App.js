@@ -8,6 +8,7 @@ import { apiService } from './services/apiService';
 // Import del parser Excel aggiornato
 import { parseExcelFile, formatCurrency, formatNumber, sortFilesByDate } from './utils/excelParser';
 import ConfirmationDialog from './components/ConfirmationDialog';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './App.css';
 
 // Context per la gestione dei dati
@@ -499,9 +500,15 @@ const Dashboard = () => {
     }
   }, [data.uploadedFiles, selectedFileDate, setSelectedFileDate]);
 
-  const { stats, currentFile } = React.useMemo(() => {
+  const { stats, currentFile, smChartData } = React.useMemo(() => {
+    const emptyState = {
+      stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 },
+      currentFile: null,
+      smChartData: []
+    };
+
     if (data.uploadedFiles.length === 0) {
-      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
+      return emptyState;
     }
     
     const targetFile = selectedFileDate
@@ -511,13 +518,21 @@ const Dashboard = () => {
     // Se il file non si trova, usa il primo come fallback
     const fileToUse = targetFile || data.uploadedFiles[0];
 
-    if (!fileToUse || !fileToUse.metadata) {
-      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
+    if (!fileToUse || !fileToUse.metadata || !fileToUse.data) {
+      return emptyState;
     }
     
+    const chartData = fileToUse.data.smStats
+      .map(sm => ({
+        name: sm.nome,
+        'Fatturato': sm.totali.fatturato,
+      }))
+      .sort((a, b) => b['Fatturato'] - a['Fatturato']);
+
     return {
       stats: fileToUse.metadata,
-      currentFile: fileToUse
+      currentFile: fileToUse,
+      smChartData: chartData
     };
   }, [data.uploadedFiles, selectedFileDate]);
   
@@ -546,45 +561,37 @@ const Dashboard = () => {
       </div>
       
       <div className="stats-grid">
-        <div className="stat-card">
-          <h3>File Caricati</h3>
-          <div className="stat-number">{data.uploadedFiles.length}</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>Totale Agenti</h3>
-          <div className="stat-number">{formatNumber(stats.totalAgents)}</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>SM Attivi</h3>
-          <div className="stat-number">{formatNumber(stats.totalSMs)}</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>Fatturato Totale</h3>
-          <div className="stat-number">{formatCurrency(stats.totalRevenue)}</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>Inflow Totale</h3>
-          <div className="stat-number">{formatCurrency(stats.totalInflow)}</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>Nuovi Clienti</h3>
-          <div className="stat-number">{formatNumber(stats.totalNewClients)}</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>Contratti Fastweb</h3>
-          <div className="stat-number">
-            {stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--'}
+        {[
+          { title: 'File Caricati', value: data.uploadedFiles.length, format: 'number' },
+          { title: 'Totale Agenti', value: stats.totalAgents, format: 'number' },
+          { title: 'SM Attivi', value: stats.totalSMs, format: 'number' },
+          { title: 'Fatturato Totale', value: stats.totalRevenue, format: 'currency' },
+          { title: 'Inflow Totale', value: stats.totalInflow, format: 'currency' },
+          { title: 'Nuovi Clienti', value: stats.totalNewClients, format: 'number' },
+          { title: 'Contratti Fastweb', value: stats.totalFastweb, format: 'special' }
+        ].map((item, index) => (
+          <div
+            className="stat-card"
+            key={item.title}
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <h3>{item.title}</h3>
+            {item.format === 'special' ? (
+              <>
+                <div className="stat-number">
+                  {item.value > 0 ? formatNumber(item.value) : '--'}
+                </div>
+                {item.value === 0 && (
+                  <div className="stat-note">Non disponibile nel periodo</div>
+                )}
+              </>
+            ) : (
+              <div className="stat-number">
+                {item.format === 'currency' ? formatCurrency(item.value) : formatNumber(item.value)}
+              </div>
+            )}
           </div>
-          {stats.totalFastweb === 0 && (
-            <div className="stat-note">Non disponibile nel periodo</div>
-          )}
-        </div>
+        ))}
       </div>
       
       {data.uploadedFiles.length === 0 && (
@@ -614,6 +621,27 @@ const Dashboard = () => {
               <p>Nuovi clienti per agente: <strong>{(stats.totalNewClients / (stats.totalAgents || 1)).toFixed(2)}</strong></p>
             </div>
           </div>
+        </div>
+      )}
+
+      {currentFile && smChartData.length > 0 && (
+        <div className="chart-container">
+          <h3>📊 Fatturato per Coordinatore (SM)</h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              data={smChartData}
+              margin={{
+                top: 20, right: 30, left: 20, bottom: 5,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis tickFormatter={(value) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', notation: 'compact' }).format(value)} />
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Legend />
+              <Bar dataKey="Fatturato" fill="#1976d2" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
     </div>
