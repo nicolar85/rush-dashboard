@@ -204,12 +204,12 @@ const FileUpload = ({ openDialog }) => {
             size: file.file_size,
             data: fileData, // Dati completi per la dashboard
             metadata: {
-              totalAgents: file.total_agents,
-              totalSMs: file.total_sms,
-              totalRevenue: file.total_revenue,
-              totalInflow: file.total_inflow,
-              totalNewClients: file.total_new_clients,
-              totalFastweb: file.total_fastweb
+              totalAgents: fileData.metadata.totalAgents,
+              totalSMs: fileData.metadata.totalSMs,
+              totalRevenue: fileData.totals.fatturato,
+              totalInflow: fileData.totals.inflow,
+              totalNewClients: fileData.totals.nuoviClienti,
+              totalFastweb: fileData.totals.fastwebEnergia || 0
             }
           };
         } catch (error) {
