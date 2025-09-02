@@ -485,38 +485,63 @@ const FileUpload = ({ openDialog }) => {
 
 // Componente Dashboard principale - AGGIORNATO
 const Dashboard = () => {
-  const { data } = useData();
+  const { data, selectedFileDate, setSelectedFileDate } = useData();
   
-  // *** FIX: Calcola le statistiche dai dati caricati (usa il file più recente per data, non per upload) ***
-  const stats = React.useMemo(() => {
+  // Effetto per gestire la selezione del periodo
+  React.useEffect(() => {
+    // Se non c'è una selezione e ci sono file, seleziona il più recente
+    if (!selectedFileDate && data.uploadedFiles.length > 0) {
+      setSelectedFileDate(data.uploadedFiles[0].date);
+    }
+    // Se il file selezionato non è più nella lista (es. eliminato), resetta la selezione
+    if (selectedFileDate && !data.uploadedFiles.find(f => f.date === selectedFileDate)) {
+      setSelectedFileDate(data.uploadedFiles[0]?.date || null);
+    }
+  }, [data.uploadedFiles, selectedFileDate, setSelectedFileDate]);
+
+  const { stats, currentFile } = React.useMemo(() => {
     if (data.uploadedFiles.length === 0) {
-      return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 };
+      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
     }
     
-    // *** FIX: I file sono già ordinati per data nel nome dal parser ***
-    const latestFile = data.uploadedFiles[0]; // Il primo è il più recente per data
-    if (!latestFile.metadata) {
-      return { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 };
+    const targetFile = selectedFileDate
+      ? data.uploadedFiles.find(f => f.date === selectedFileDate)
+      : data.uploadedFiles[0];
+
+    // Se il file non si trova, usa il primo come fallback
+    const fileToUse = targetFile || data.uploadedFiles[0];
+
+    if (!fileToUse || !fileToUse.metadata) {
+      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
     }
     
     return {
-      totalAgents: latestFile.metadata.totalAgents,
-      totalSMs: latestFile.metadata.totalSMs,
-      totalRevenue: latestFile.metadata.totalRevenue,
-      totalInflow: latestFile.metadata.totalInflow,
-      totalNewClients: latestFile.metadata.totalNewClients,
-      totalFastweb: latestFile.metadata.totalFastweb || 0 // ← Gestisce se non esiste
+      stats: fileToUse.metadata,
+      currentFile: fileToUse
     };
-  }, [data.uploadedFiles]);
+  }, [data.uploadedFiles, selectedFileDate]);
   
   return (
     <div className="dashboard-content">
       <div className="dashboard-header">
         <h2>📊 Dashboard Generale</h2>
-        {data.uploadedFiles.length > 0 && (
-          <p className="current-period">
-            Periodo corrente: <strong>{data.uploadedFiles[0].displayDate}</strong>
-          </p>
+        {data.uploadedFiles.length > 0 && currentFile ? (
+          <div className="period-selector">
+            <label htmlFor="period-select">Periodo di Riferimento:</label>
+            <select
+              id="period-select"
+              value={currentFile.date}
+              onChange={(e) => setSelectedFileDate(e.target.value)}
+            >
+              {data.uploadedFiles.map(file => (
+                <option key={file.id} value={file.date}>
+                  {file.displayDate}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+           <p className="current-period">Nessun periodo disponibile</p>
         )}
       </div>
       
@@ -569,14 +594,14 @@ const Dashboard = () => {
         </div>
       )}
       
-      {data.uploadedFiles.length > 0 && (
+      {currentFile && (
         <div className="quick-insights">
-          <h3>📈 Insights Rapidi</h3>
+          <h3>📈 Insights Rapidi (Periodo: {currentFile.displayDate})</h3>
           <div className="insights-grid">
             <div className="insight-card">
-              <h4>File Più Recente</h4>
-              <p>Periodo: <strong>{data.uploadedFiles[0]?.displayDate}</strong></p>
-              <p className="insight-detail">Ordinamento per data nel nome file</p>
+              <h4>File Selezionato</h4>
+              <p>Periodo: <strong>{currentFile.displayDate}</strong></p>
+              <p className="insight-detail">Dati relativi al periodo selezionato</p>
             </div>
             <div className="insight-card">
               <h4>Media per Agente</h4>
@@ -585,8 +610,8 @@ const Dashboard = () => {
             </div>
             <div className="insight-card">
               <h4>Performance Generale</h4>
-              <p>Rapporto Inflow/Fatturato: <strong>{((stats.totalInflow / stats.totalRevenue) * 100).toFixed(1)}%</strong></p>
-              <p>Nuovi clienti per agente: <strong>{formatNumber(stats.totalNewClients / (stats.totalAgents || 1))}</strong></p>
+              <p>Rapporto Inflow/Fatturato: <strong>{((stats.totalInflow / (stats.totalRevenue || 1)) * 100).toFixed(1)}%</strong></p>
+              <p>Nuovi clienti per agente: <strong>{(stats.totalNewClients / (stats.totalAgents || 1)).toFixed(2)}</strong></p>
             </div>
           </div>
         </div>
@@ -605,6 +630,7 @@ const MainApp = ({ currentUser, onLogout }) => {
     selectedAgent: null
   });
   const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [selectedFileDate, setSelectedFileDate] = useState(null);
 
   const openDialog = (title, message, onConfirm) => {
     setDialog({
@@ -644,7 +670,7 @@ const MainApp = ({ currentUser, onLogout }) => {
   };
 
   return (
-    <DataContext.Provider value={{ data, setData }}>
+    <DataContext.Provider value={{ data, setData, selectedFileDate, setSelectedFileDate }}>
       <div className="app-layout">
         <Sidebar 
           activeSection={activeSection} 
