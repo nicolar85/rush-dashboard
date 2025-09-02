@@ -1,206 +1,175 @@
+// src/utils/excelParser.js - PARSER COMPLETAMENTE DINAMICO E ROBUSTO
+
 import * as XLSX from 'xlsx';
 
 /**
- * 🧠 MAPPATURA DINAMICA E FLESSIBILE
- * Usa pattern matching intelligente per gestire variazioni nei file
+ * 🎯 MAPPATURA DINAMICA BASATA SUI NOMI DEGLI HEADER
+ * Questo sistema cerca le colonne in base al CONTENUTO dell'header, non alla posizione
  */
 const DYNAMIC_FIELD_PATTERNS = {
-  // Identificatori agente - Sempre fissi
-  NUMERO: {
-    patterns: ['n.', 'numero', 'n', '#'],
+  // Identificatori agente (OBBLIGATORI)
+  'AGENTE': {
+    patterns: ['nome agente', 'agente', 'nome', 'cognome agente', 'consulente'],
     required: true,
-    type: 'number'
+    description: 'Nome/Cognome dell\'agente'
   },
-  AGENTE: {
-    patterns: ['agente', 'nome agente', 'agent'],
+  'SM': {
+    patterns: ['sm', 'sales manager', 'coordinatore', 'coord', 'manager'],
     required: true,
-    type: 'string'
-  },
-  SM: {
-    patterns: ['sm', 'sales manager', 'coordinatore'],
-    required: true,
-    type: 'string'
-  },
-  SE: {
-    patterns: ['se', 'sales executive'],
-    required: false,
-    type: 'string'
-  },
-  DISTRETTO: {
-    patterns: ['distretto', 'area'],
-    required: false,
-    type: 'string'
-  },
-  TIPOLOGIA: {
-    patterns: ['tipologia', 'tipo'],
-    required: false,
-    type: 'string'
+    description: 'Sales Manager / Coordinatore'
   },
   
-  // Prodotti - Pezzi (possono variare)
-  SIM_VOCE_TOTALI: {
-    patterns: ['sim voce totali', 'voce totale', 'sim voce'],
-    required: false,
-    type: 'number'
-  },
-  SIM_DATI_TOTALI: {
-    patterns: ['sim dati totali', 'dati totale', 'sim dati'],
-    required: false,
-    type: 'number'
-  },
-  SIM_MNP_VOCE: {
-    patterns: ['sim mnp voce', 'mnp voce'],
-    required: false,
-    type: 'number'
-  },
-  EASY_RENT: {
-    patterns: ['easy rent'],
-    required: false,
-    type: 'number'
-  },
-  ADSL: {
-    patterns: ['adsl'],
-    required: false,
-    type: 'number'
-  },
-  LINK_OU: {
-    patterns: ['link ou', 'ou'],
-    required: false,
-    type: 'number'
-  },
-  LINK_OA: {
-    patterns: ['link oa', 'oa'],
-    required: false,
-    type: 'number'
-  },
-  
-  // Fatturato per prodotto (possono variare)
-  FATTURATO_VOCE: {
-    patterns: ['fatturato voce'],
-    required: false,
-    type: 'number'
-  },
-  FATTURATO_DATI: {
-    patterns: ['fatturato dati'],
-    required: false,
-    type: 'number'
-  },
-  FATTURATO_EASY_RENT: {
-    patterns: ['fatturato easy rent'],
-    required: false,
-    type: 'number'
-  },
-  FATTURATO_ADSL: {
-    patterns: ['fatturato adsl'],
-    required: false,
-    type: 'number'
-  },
-  FATTURATO_OU: {
-    patterns: ['fatturato ou'],
-    required: false,
-    type: 'number'
-  },
-  FATTURATO_OA: {
-    patterns: ['fatturato oa'],
-    required: false,
-    type: 'number'
-  },
-  FATTURATO_SERVIZI_DIGITALI: {
-    patterns: ['fatturato servizi digitali'],
-    required: false,
-    type: 'number'
-  },
-  
-  // Metriche principali - SEMPRE IMPORTANTI
-  FATTURATO_COMPLESSIVO: {
-    patterns: ['fatturato complessivo', 'fatturato totale'],
+  // Metriche finanziarie (OBBLIGATORIE)
+  'FATTURATO_RUSH': {
+    patterns: ['fatturato rush', 'fatturato', 'rush fatturato', 'fat rush', 'revenue'],
     required: true,
-    type: 'number'
+    description: 'Fatturato Rush dell\'agente'
   },
-  FATTURATO_RUSH: {
-    patterns: ['fatturato rush', 'inflow rush', 'rush'],
+  'INFLOW': {
+    patterns: ['inflow', 'in flow', 'entrate', 'ricavi'],
     required: true,
-    type: 'number',
-    description: 'Inflow totale della gara'
-  },
-  NUOVO_CLIENTE: {
-    patterns: ['nuovo cliente', 'nuovi clienti'],
-    required: true,
-    type: 'number'
+    description: 'Inflow dell\'agente'
   },
   
-  // FASTWEB - Può esistere o non esistere!
-  FASTWEB_ENERGIA: {
-    patterns: ['fastweb energia', 'fastweb'],
-    required: false, // ← NON OBBLIGATORIO!
-    type: 'number',
-    description: 'Contratti Fastweb (può non esistere in alcuni periodi)'
+  // Prodotti voce (opzionali ma importanti)
+  'CASA': {
+    patterns: ['casa', 'fisso casa', 'linea casa', 'casa voce'],
+    required: false,
+    description: 'Contratti Casa/Fisso'
+  },
+  'BUSINESS': {
+    patterns: ['business', 'aziende', 'aziendale', 'biz'],
+    required: false,
+    description: 'Contratti Business'
+  },
+  'MOBILE': {
+    patterns: ['mobile', 'cellulare', 'sim', 'telefonia mobile'],
+    required: false,
+    description: 'Contratti Mobile'
   },
   
-  // Altri campi che possono variare
-  TOTALE_PEZZI: {
-    patterns: ['totale pezzi'],
+  // Prodotti dati
+  'ADSL': {
+    patterns: ['adsl', 'adsl casa', 'internet casa'],
     required: false,
-    type: 'number'
+    description: 'Contratti ADSL'
   },
-  BSALES_MOBILE: {
-    patterns: ['bsales mobile'],
+  'FIBRA': {
+    patterns: ['fibra', 'ftth', 'fibra ottica', 'fibra casa'],
     required: false,
-    type: 'number'
+    description: 'Contratti Fibra'
   },
-  PDA_DIGITALE: {
-    patterns: ['pda digitale'],
+  'FIBRA_BUSINESS': {
+    patterns: ['fibra business', 'fibra aziendale', 'ftth business'],
     required: false,
-    type: 'number'
+    description: 'Contratti Fibra Business'
+  },
+  
+  // Prodotti energia
+  'LUCE': {
+    patterns: ['luce', 'energia elettrica', 'elettricità', 'ee'],
+    required: false,
+    description: 'Contratti Luce'
+  },
+  'GAS': {
+    patterns: ['gas', 'gas naturale', 'metano'],
+    required: false,
+    description: 'Contratti Gas'
+  },
+  
+  // Nuovi clienti e station
+  'NUOVI_CLIENTI': {
+    patterns: ['nuovi clienti', 'nc', 'new customers', 'clienti nuovi'],
+    required: false,
+    description: 'Nuovi Clienti acquisiti'
+  },
+  'STATION': {
+    patterns: ['station', 'tim station', 'negozi'],
+    required: false,
+    description: 'Contratti via Station'
+  },
+  
+  // Fastweb
+  'FASTWEB_MOBILE': {
+    patterns: ['fastweb mobile', 'fw mobile', 'fastweb sim'],
+    required: false,
+    description: 'Contratti Fastweb Mobile'
+  },
+  'FASTWEB_CASA': {
+    patterns: ['fastweb casa', 'fw casa', 'fastweb fisso'],
+    required: false,
+    description: 'Contratti Fastweb Casa'
+  },
+  'FASTWEB_BUSINESS': {
+    patterns: ['fastweb business', 'fw business', 'fastweb aziendale'],
+    required: false,
+    description: 'Contratti Fastweb Business'
+  },
+  'FASTWEB_ENERGIA': {
+    patterns: ['fastweb energia', 'fw energia', 'fastweb luce gas'],
+    required: false,
+    description: 'Contratti Fastweb Energia'
+  },
+  
+  // Altri campi utili
+  'TOTALE_PEZZI': {
+    patterns: ['totale pezzi', 'pezzi totali', 'tot pezzi', 'pieces'],
+    required: false,
+    description: 'Totale contratti/pezzi'
+  },
+  'NUMERO': {
+    patterns: ['n.', 'numero', 'n', '#', 'id'],
+    required: false,
+    description: 'Numero identificativo'
   }
 };
 
 /**
  * 🔍 TROVA LA RIGA HEADER AUTOMATICAMENTE
- * Cerca la riga con più colonne che sembrano header
+ * Cerca la riga che contiene più keywords tipiche degli header
  */
 function findHeaderRow(worksheet) {
   const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
-  let bestRow = -1;
+  const headerKeywords = ['agente', 'nome', 'fatturato', 'rush', 'sm', 'coordinatore', 'inflow'];
+  
+  let bestRow = 4; // Default basato sull'analisi precedente
   let bestScore = 0;
   
+  // Controlla le prime 10 righe per trovare gli header
   for (let row = 0; row <= Math.min(10, range.e.r); row++) {
     let score = 0;
-    const headers = [];
+    let cellCount = 0;
     
     for (let col = 0; col <= Math.min(50, range.e.c); col++) {
       const cellRef = XLSX.utils.encode_cell({r: row, c: col});
       const cell = worksheet[cellRef];
       
-      if (cell && cell.v && typeof cell.v === 'string') {
-        const value = cell.v.toString().toLowerCase();
-        headers.push(value);
+      if (cell && cell.v !== undefined && cell.v !== '') {
+        cellCount++;
+        const cellText = cell.v.toString().toLowerCase();
         
-        // Punteggio per parole chiave tipiche degli header
-        const keywords = ['agente', 'sm', 'fatturato', 'sim', 'inflow', 'nuovo', 'cliente'];
-        for (const keyword of keywords) {
-          if (value.includes(keyword)) {
-            score += 2;
+        // Conta quante keywords header sono presenti
+        for (const keyword of headerKeywords) {
+          if (cellText.includes(keyword)) {
+            score += 10;
           }
         }
         
-        // Punteggio per pattern generici
-        if (value.length > 3 && value.length < 50) {
-          score += 0.5;
+        // Bonus se la cella sembra un header tipico
+        if (cellText.length > 3 && cellText.length < 30) {
+          score += 1;
         }
       }
     }
     
-    console.log(`Riga ${row + 1}: ${score} punti, ${headers.length} colonne`);
-    
-    if (score > bestScore && score > 10) {
-      bestScore = score;
-      bestRow = row;
+    // Normalizza il punteggio per il numero di celle
+    if (cellCount > 5) { // Deve avere almeno 5 colonne per essere un header valido
+      const normalizedScore = score + (cellCount * 0.5);
+      if (normalizedScore > bestScore) {
+        bestScore = normalizedScore;
+        bestRow = row;
+      }
     }
-  }
-  
-  if (bestRow === -1) {
-    throw new Error('Impossibile trovare la riga header nel file');
   }
   
   console.log(`✅ Riga header selezionata: ${bestRow + 1} (score: ${bestScore})`);
@@ -310,7 +279,67 @@ function createIntelligentMapping(worksheet, headerRow) {
 }
 
 /**
- * Utility functions (rimangono uguali)
+ * 📊 PARSING DINAMICO DI UNA RIGA AGENTE
+ */
+function parseAgentRow(worksheet, row, mapping) {
+  const getColumnValue = (fieldKey, expectedType = 'auto') => {
+    const column = mapping[fieldKey];
+    if (!column) return expectedType === 'number' ? 0 : '';
+    
+    const cellRef = `${column}${row + 1}`;
+    const cell = worksheet[cellRef];
+    return cleanCellValue(cell, expectedType);
+  };
+  
+  const agent = {};
+  
+  // Campi base (obbligatori)
+  agent.nome = getColumnValue('AGENTE', 'string');
+  agent.sm = getColumnValue('SM', 'string');
+  
+  // 🔧 FIX: Metriche finanziarie con calcolo corretto
+  agent.fatturatoRush = getColumnValue('FATTURATO_RUSH', 'number');
+  agent.inflow = getColumnValue('INFLOW', 'number');
+  
+  // Prodotti voce
+  agent.casa = getColumnValue('CASA', 'number');
+  agent.business = getColumnValue('BUSINESS', 'number');
+  agent.mobile = getColumnValue('MOBILE', 'number');
+  
+  // Prodotti dati
+  agent.adsl = getColumnValue('ADSL', 'number');
+  agent.fibra = getColumnValue('FIBRA', 'number');
+  agent.fibraBusiness = getColumnValue('FIBRA_BUSINESS', 'number');
+  
+  // Prodotti energia
+  agent.luce = getColumnValue('LUCE', 'number');
+  agent.gas = getColumnValue('GAS', 'number');
+  
+  // Altri
+  agent.nuoviClienti = getColumnValue('NUOVI_CLIENTI', 'number');
+  agent.station = getColumnValue('STATION', 'number');
+  
+  // Fastweb
+  agent.fastwebMobile = getColumnValue('FASTWEB_MOBILE', 'number');
+  agent.fastwebCasa = getColumnValue('FASTWEB_CASA', 'number');
+  agent.fastwebBusiness = getColumnValue('FASTWEB_BUSINESS', 'number');
+  agent.fastwebEnergia = getColumnValue('FASTWEB_ENERGIA', 'number');
+  
+  // Altri campi opzionali
+  agent.totalePezzi = getColumnValue('TOTALE_PEZZI', 'number');
+  agent.numero = getColumnValue('NUMERO', 'string');
+  
+  // 🔧 FIX: Calcoli derivati corretti
+  agent.totaleFastweb = agent.fastwebMobile + agent.fastwebCasa + agent.fastwebBusiness + agent.fastwebEnergia;
+  agent.totaleVoce = agent.casa + agent.business + agent.mobile;
+  agent.totaleDati = agent.adsl + agent.fibra + agent.fibraBusiness;
+  agent.totaleEnergia = agent.luce + agent.gas;
+  
+  return agent;
+}
+
+/**
+ * 🛠️ UTILITY FUNCTIONS
  */
 function columnToIndex(column) {
   let result = 0;
@@ -321,16 +350,22 @@ function columnToIndex(column) {
 }
 
 function extractDateFromFilename(filename) {
+  // Pattern per data nel formato YYYY.MM.DD
   const dateMatch = filename.match(/(\d{4})\.(\d{2})\.(\d{2})/);
   if (!dateMatch) {
     throw new Error('Nome file non valido. Formato atteso: YYYY.MM.DD');
   }
   
+  const year = parseInt(dateMatch[1]);
+  const month = parseInt(dateMatch[2]);
+  const day = parseInt(dateMatch[3]);
+  
   return {
-    year: parseInt(dateMatch[1]),
-    month: parseInt(dateMatch[2]),
-    day: parseInt(dateMatch[3]),
-    dateString: `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`
+    year,
+    month,
+    day,
+    dateString: `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`,
+    displayDate: `${month}/${year}`
   };
 }
 
@@ -344,6 +379,7 @@ function cleanCellValue(cell, expectedType = 'auto') {
   if (expectedType === 'number') {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
+      // Rimuovi simboli di valuta e separatori
       value = value.toString().replace(/[€$,.\s]/g, '').replace(',', '.');
       const parsed = parseFloat(value);
       return isNaN(parsed) ? 0 : parsed;
@@ -355,70 +391,9 @@ function cleanCellValue(cell, expectedType = 'auto') {
     return value.toString().trim();
   }
   
-  return value;
-}
-
-/**
- * 📊 PARSA SINGOLA RIGA AGENTE CON GESTIONE DINAMICA
- */
-function parseAgentRow(worksheet, rowIndex, columnMapping) {
-  const agent = {};
-  
-  const getColumnValue = (fieldKey, expectedType = 'auto') => {
-    const columnLetter = columnMapping[fieldKey];
-    if (!columnLetter) {
-      // Campo non trovato - restituisci valore di default
-      return expectedType === 'number' ? 0 : '';
-    }
-    
-    const cellRef = XLSX.utils.encode_cell({r: rowIndex, c: columnToIndex(columnLetter)});
-    return cleanCellValue(worksheet[cellRef], expectedType);
-  };
-  
-  // Dati base agente - OBBLIGATORI
-  agent.numero = getColumnValue('NUMERO', 'number');
-  agent.nome = getColumnValue('AGENTE', 'string');
-  agent.sm = getColumnValue('SM', 'string');
-  agent.se = getColumnValue('SE', 'string');
-  agent.distretto = getColumnValue('DISTRETTO', 'string');
-  agent.tipologia = getColumnValue('TIPOLOGIA', 'string');
-  
-  // Prodotti - DINAMICI (0 se non esistono)
-  agent.prodotti = {
-    simVoceTotali: getColumnValue('SIM_VOCE_TOTALI', 'number'),
-    simDatiTotali: getColumnValue('SIM_DATI_TOTALI', 'number'),
-    simMnpVoce: getColumnValue('SIM_MNP_VOCE', 'number'),
-    easyRent: getColumnValue('EASY_RENT', 'number'),
-    adsl: getColumnValue('ADSL', 'number'),
-    linkOU: getColumnValue('LINK_OU', 'number'),
-    linkOA: getColumnValue('LINK_OA', 'number')
-  };
-  
-  // Fatturati per prodotto - DINAMICI
-  agent.fatturato = {
-    voce: getColumnValue('FATTURATO_VOCE', 'number'),
-    dati: getColumnValue('FATTURATO_DATI', 'number'),
-    easyRent: getColumnValue('FATTURATO_EASY_RENT', 'number'),
-    adsl: getColumnValue('FATTURATO_ADSL', 'number'),
-    ou: getColumnValue('FATTURATO_OU', 'number'),
-    oa: getColumnValue('FATTURATO_OA', 'number'),
-    serviziDigitali: getColumnValue('FATTURATO_SERVIZI_DIGITALI', 'number'),
-    complessivo: getColumnValue('FATTURATO_COMPLESSIVO', 'number'),
-    rush: getColumnValue('FATTURATO_RUSH', 'number')
-  };
-  
-  // Metriche principali - IMPORTANTI
-  agent.nuoviClienti = getColumnValue('NUOVO_CLIENTE', 'number');
-  
-  // 🎯 FASTWEB - PUÒ NON ESISTERE!
-  agent.fastwebEnergia = getColumnValue('FASTWEB_ENERGIA', 'number');
-  
-  // Altri campi opzionali
-  agent.totalePezzi = getColumnValue('TOTALE_PEZZI', 'number');
-  agent.bsalesMobile = getColumnValue('BSALES_MOBILE', 'number');
-  agent.pdaDigitale = getColumnValue('PDA_DIGITALE', 'number');
-  
-  return agent;
+  // Auto-detect
+  if (typeof value === 'number') return value;
+  return value.toString().trim();
 }
 
 /**
@@ -447,19 +422,25 @@ export function formatNumber(value) {
  */
 export function sortFilesByDate(files) {
   return [...files].sort((a, b) => {
-    // Estrai la data dal nome del file o usa la proprietà date
-    const dateA = a.date || extractDateFromFilename(a.name).dateString;
-    const dateB = b.date || extractDateFromFilename(b.name).dateString;
-    
-    // Ordina dal più recente al più vecchio
-    return new Date(dateB) - new Date(dateA);
+    try {
+      // Estrai la data dal nome del file o usa la proprietà date
+      const dateA = a.date || extractDateFromFilename(a.name).dateString;
+      const dateB = b.date || extractDateFromFilename(b.name).dateString;
+      
+      // Ordina dal più recente al più vecchio
+      return new Date(dateB) - new Date(dateA);
+    } catch (error) {
+      console.warn('Errore nell\'ordinamento dei file:', error);
+      // Fallback: ordina per nome
+      return b.name.localeCompare(a.name);
+    }
   });
 }
 
 /**
  * 🚀 PARSING PRINCIPALE - DINAMICO E INTELLIGENTE
  */
-export async function parseExcelFile(file) {
+export async function parseExcelFile(file, userMapping = null) {
   try {
     console.log('🔄 Inizio parsing dinamico:', file.name);
     
@@ -494,10 +475,14 @@ export async function parseExcelFile(file) {
       const criticalMissing = missingColumns.map(c => c.field).join(', ');
       console.error('❌ CAMPI OBBLIGATORI MANCANTI:', criticalMissing);
       
-      throw new Error(
-        `Impossibile procedere: mancano campi obbligatori: ${criticalMissing}.\n` +
-        `Verifica che il file contenga le colonne necessarie.`
-      );
+      return {
+        success: false,
+        needsMapping: true,
+        error: `Campi obbligatori mancanti: ${criticalMissing}`,
+        missingColumns,
+        availableColumns,
+        totalColumns
+      };
     }
     
     // Parsa i dati
@@ -523,94 +508,89 @@ export async function parseExcelFile(file) {
         
         // Validazione
         if (!agent.nome || agent.nome.trim() === '') continue;
-        
-        // Calcola totali dinamici
-        agent.totaliProdotti = {
-          pezziTotali: Object.values(agent.prodotti).reduce((sum, val) => sum + (val || 0), 0)
-        };
-        
-        // Inflow = FATTURATO RUSH
-        agent.inflowTotale = agent.fatturato.rush || 0;
-        
-        // Info temporale
-        agent.mese = dateInfo.month;
-        agent.anno = dateInfo.year;
-        agent.dataFile = dateInfo.dateString;
+        if (!agent.sm || agent.sm.trim() === '') continue;
         
         agents.push(agent);
         
-        // Statistiche SM
-        if (agent.sm && agent.sm.trim() !== '') {
-          if (!smStats.has(agent.sm)) {
-            smStats.set(agent.sm, {
-              nome: agent.sm,
-              agenti: [],
-              totali: {
-                fatturato: 0,
-                inflow: 0,
-                nuoviClienti: 0,
-                fastwebEnergia: 0,
-                pezzi: 0
-              }
-            });
-          }
-          
-          const smData = smStats.get(agent.sm);
-          smData.agenti.push(agent);
-          smData.totali.fatturato += agent.fatturato.complessivo || 0;
-          smData.totali.inflow += agent.inflowTotale || 0;
-          smData.totali.nuoviClienti += agent.nuoviClienti || 0;
-          smData.totali.fastwebEnergia += agent.fastwebEnergia || 0;
-          smData.totali.pezzi += agent.totaliProdotti.pezziTotali || 0;
+        // Accumula statistiche SM
+        if (!smStats.has(agent.sm)) {
+          smStats.set(agent.sm, {
+            nome: agent.sm,
+            agenti: [],
+            fatturatoTotale: 0,
+            inflowTotale: 0,
+            nuoviClienti: 0,
+            totaleFastweb: 0
+          });
         }
         
-      } catch (rowError) {
-        console.warn(`⚠️ Errore riga ${row + 1}:`, rowError);
+        const smData = smStats.get(agent.sm);
+        smData.agenti.push(agent);
+        smData.fatturatoTotale += agent.fatturatoRush;
+        smData.inflowTotale += agent.inflow;
+        smData.nuoviClienti += agent.nuoviClienti;
+        smData.totaleFastweb += agent.totaleFastweb;
+        
+      } catch (error) {
+        console.warn(`Errore riga ${row + 1}:`, error);
+        continue;
       }
     }
     
-    // 📊 RISULTATO FINALE
+    console.log(`✅ Parsing completato: ${agents.length} agenti trovati`);
+    
+    // 🔧 FIX: Calcola i totali CORRETTI
+    const totals = agents.reduce((acc, agent) => {
+      acc.totalRevenue += agent.fatturatoRush;
+      acc.totalInflow += agent.inflow;
+      acc.totalNewClients += agent.nuoviClienti;
+      acc.totalFastweb += agent.totaleFastweb;
+      return acc;
+    }, {
+      totalRevenue: 0,
+      totalInflow: 0,
+      totalNewClients: 0,
+      totalFastweb: 0
+    });
+    
+    console.log('💰 Totali calcolati:', {
+      fatturato: formatCurrency(totals.totalRevenue),
+      inflow: formatCurrency(totals.totalInflow),
+      nuoviClienti: totals.totalNewClients,
+      fastweb: totals.totalFastweb
+    });
+    
+    // Struttura risultato
     const result = {
       success: true,
       data: {
         agents,
-        smStats: Array.from(smStats.values()),
+        smData: Array.from(smStats.values()),
+        fileInfo: {
+          name: file.name,
+          dateInfo,
+          parsedRows: agents.length,
+          headerRow: headerRow + 1,
+          totalColumns
+        },
         metadata: {
           totalAgents: agents.length,
           totalSMs: smStats.size,
+          totalRevenue: totals.totalRevenue,
+          totalInflow: totals.totalInflow,
+          totalNewClients: totals.totalNewClients,
+          totalFastweb: totals.totalFastweb,
           dateInfo,
-          filename: file.name,
-          uploadDate: new Date().toISOString(),
-          headerRow: headerRow + 1,
-          totalColumns,
-          mappedFields: Object.keys(mapping).length,
-          warnings: warnings.length > 0 ? warnings : null,
-          availableColumns
-        },
-        totals: {
-          fatturato: agents.reduce((sum, a) => sum + (a.fatturato.complessivo || 0), 0),
-          inflow: agents.reduce((sum, a) => sum + (a.inflowTotale || 0), 0),
-          nuoviClienti: agents.reduce((sum, a) => sum + (a.nuoviClienti || 0), 0),
-          fastwebEnergia: agents.reduce((sum, a) => sum + (a.fastwebEnergia || 0), 0),
-          pezzi: agents.reduce((sum, a) => sum + (a.totaliProdotti.pezziTotali || 0), 0)
+          warnings: warnings.length > 0 ? warnings : null
         }
       }
     };
     
-    console.log('✅ Parsing completato con successo!');
-    console.log(`📊 ${agents.length} agenti, ${smStats.size} SM`);
-    console.log(`💰 €${result.data.totals.fatturato.toLocaleString()} fatturato`);
-    console.log(`⚡ €${result.data.totals.inflow.toLocaleString()} inflow`);
-    
-    if (warnings.length > 0) {
-      console.log(`💡 ${warnings.length} campi opzionali impostati a 0:`);
-      warnings.forEach(w => console.log(`  - ${w.field}: ${w.description || 'N/A'}`));
-    }
-    
+    console.log('🎉 Parsing completato con successo!');
     return result;
     
   } catch (error) {
-    console.error('❌ Errore nel parsing:', error);
+    console.error('❌ Errore parsing:', error);
     return {
       success: false,
       error: error.message

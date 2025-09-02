@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, useEffect, useCallback } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import toast, { Toaster } from 'react-hot-toast';
@@ -11,7 +11,7 @@ import ConfirmationDialog from './components/ConfirmationDialog';
 import Agents from './components/Agents'; // Importa il nuovo componente
 import './App.css';
 
-// Context per la gestione dei dati
+// Context per la gestione dei dati - AGGIORNATO con caricamento globale
 const DataContext = createContext();
 
 export const useData = () => {
@@ -20,6 +20,187 @@ export const useData = () => {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;
+};
+
+// 🆕 DATA PROVIDER CON CARICAMENTO GLOBALE
+const DataProvider = ({ children, isAuthenticated }) => {
+  const [data, setData] = useState({
+    uploadedFiles: [],
+    processedData: {},
+    selectedSM: null,
+    selectedAgent: null
+  });
+  const [selectedFileDate, setSelectedFileDate] = useState(null);
+  const [globalLoading, setGlobalLoading] = useState(false);
+
+  // 🔧 FUNZIONE DI CARICAMENTO GLOBALE - Condivisa tra tutti i componenti
+  const loadFiles = useCallback(async () => {
+    if (!isAuthenticated) return; // Non caricare se non autenticato
+    
+    try {
+      setGlobalLoading(true);
+      console.log('🔄 Caricamento globale dati dal database...');
+      
+      const files = await apiService.loadFiles();
+      
+      if (!files || !Array.isArray(files) || files.length === 0) {
+        console.log('📁 Nessun file trovato nel database');
+        setData(prevData => ({
+          ...prevData,
+          uploadedFiles: [],
+          processedData: {}
+        }));
+        return;
+      }
+
+      console.log(`📁 ${files.length} file trovati nel database`);
+      
+      // Converte i dati dal formato database al formato app
+      const processedFiles = await Promise.all(files.map(async (file) => {
+        try {
+          // Prova a caricare dati completi del file se necessario per la dashboard
+          let fileData = null;
+          
+          // Controlla se i dati sono già nel file dalla query principale
+          if (file.file_data) {
+            if (typeof file.file_data === 'string') {
+              fileData = JSON.parse(file.file_data);
+            } else {
+              fileData = file.file_data;
+            }
+          } else {
+            // Fallback: prova a caricare i dati separatamente
+            try {
+              fileData = await apiService.getFileData(file.file_date);
+            } catch (error) {
+              console.warn(`Impossibile caricare dati dettagliati per ${file.file_date}`);
+            }
+          }
+          
+          return {
+            id: file.id,
+            name: file.file_name,
+            date: file.file_date,
+            displayDate: file.display_date,
+            uploadDate: file.upload_date,
+            size: file.file_size,
+            data: fileData,
+            metadata: fileData ? {
+              totalAgents: fileData.metadata?.totalAgents || 0,
+              totalSMs: fileData.metadata?.totalSMs || 0,
+              totalRevenue: fileData.metadata?.totalRevenue || 0,
+              totalInflow: fileData.metadata?.totalInflow || 0,
+              totalNewClients: fileData.metadata?.totalNewClients || 0,
+              totalFastweb: fileData.metadata?.totalFastweb || 0
+            } : {
+              // Fallback dai dati di base del file
+              totalAgents: file.total_agents || 0,
+              totalSMs: file.total_sms || 0,
+              totalRevenue: file.total_revenue || 0,
+              totalInflow: file.total_inflow || 0,
+              totalNewClients: file.total_new_clients || 0,
+              totalFastweb: file.total_fastweb || 0
+            }
+          };
+        } catch (error) {
+          console.warn(`Errore processamento file ${file.file_date}:`, error);
+          return {
+            id: file.id,
+            name: file.file_name,
+            date: file.file_date,
+            displayDate: file.display_date,
+            uploadDate: file.upload_date,
+            size: file.file_size,
+            data: null,
+            metadata: {
+              totalAgents: 0,
+              totalSMs: 0,
+              totalRevenue: 0,
+              totalInflow: 0,
+              totalNewClients: 0,
+              totalFastweb: 0
+            }
+          };
+        }
+      }));
+      
+      // 🔧 FIX: Ordina i file per data nel nome, non per data upload
+      const sortedFiles = sortFilesByDate(processedFiles);
+      
+      // Crea il processedData per compatibilità con componenti esistenti
+      const processedData = {};
+      sortedFiles.forEach(file => {
+        if (file.data) {
+          processedData[file.date] = file.data;
+        }
+      });
+      
+      // 🔧 FIX: Seleziona automaticamente il file più recente se non c'è selezione
+      const newSelectedFileDate = selectedFileDate && sortedFiles.find(f => f.date === selectedFileDate) 
+        ? selectedFileDate 
+        : (sortedFiles.length > 0 ? sortedFiles[0].date : null);
+      
+      setData(prevData => ({
+        ...prevData,
+        uploadedFiles: sortedFiles,
+        processedData: processedData
+      }));
+      
+      setSelectedFileDate(newSelectedFileDate);
+      
+      console.log(`✅ ${sortedFiles.length} file caricati con successo globalmente`);
+      
+      if (sortedFiles.length > 0 && newSelectedFileDate) {
+        console.log(`📋 File selezionato: ${sortedFiles.find(f => f.date === newSelectedFileDate)?.displayDate || 'N/A'}`);
+      }
+      
+    } catch (error) {
+      console.error('Errore nel caricamento globale dei file:', error);
+      toast.error('Errore nel caricamento dei dati dal database');
+      
+      // Reset in caso di errore
+      setData(prevData => ({
+        ...prevData,
+        uploadedFiles: [],
+        processedData: {}
+      }));
+    } finally {
+      setGlobalLoading(false);
+    } 
+  }, [isAuthenticated, selectedFileDate]);
+
+  // 🚀 CARICAMENTO AUTOMATICO ALL'AUTENTICAZIONE
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('🔐 Utente autenticato - Avvio caricamento dati...');
+      loadFiles();
+    } else {
+      // Reset dati se non autenticato
+      setData({
+        uploadedFiles: [],
+        processedData: {},
+        selectedSM: null,
+        selectedAgent: null
+      });
+      setSelectedFileDate(null);
+      setGlobalLoading(false);
+    }
+  }, [isAuthenticated, loadFiles]);
+
+  const contextValue = {
+    data,
+    setData,
+    selectedFileDate,
+    setSelectedFileDate,
+    loadFiles, // Esponi la funzione per ricaricare quando necessario
+    globalLoading
+  };
+
+  return (
+    <DataContext.Provider value={contextValue}>
+      {children}
+    </DataContext.Provider>
+  );
 };
 
 // Tema Material-UI personalizzato
@@ -179,92 +360,12 @@ const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout, openD
   );
 };
 
-// Componente File Upload - VERSIONE AGGIORNATA CON PARSER DINAMICO
+// Componente File Upload - SEMPLIFICATO (non più responsabile del caricamento globale)
 const FileUpload = ({ openDialog }) => {
-  const { data, setData } = useData();
+  const { data, loadFiles, globalLoading } = useData();
   const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  // *** FIX: useCallback per loadFiles per risolvere dependency warning ***
-  const loadFiles = React.useCallback(async () => {
-    try {
-      const files = await apiService.loadFiles();
-      
-      // Converte i dati dal formato database al formato app
-      const processedFiles = await Promise.all(files.map(async (file) => {
-        try {
-          // Carica dati completi del file se necessario per la dashboard
-          const fileData = await apiService.getFileData(file.file_date);
-          
-          return {
-            id: file.id,
-            name: file.file_name,
-            date: file.file_date,
-            displayDate: file.display_date,
-            uploadDate: file.upload_date,
-            size: file.file_size,
-            data: fileData, // Dati completi per la dashboard
-            metadata: {
-              totalAgents: fileData.metadata.totalAgents,
-              totalSMs: fileData.metadata.totalSMs,
-              totalRevenue: fileData.metadata.totalRevenue,
-              totalInflow: fileData.metadata.totalInflow,
-              totalNewClients: fileData.metadata.totalNewClients,
-              totalFastweb: fileData.metadata.totalFastweb || 0
-            }
-          };
-        } catch (error) {
-          console.warn(`Errore caricamento dati file ${file.file_date}:`, error);
-          // Ritorna file senza dati completi se il caricamento fallisce
-          return {
-            id: file.id,
-            name: file.file_name,
-            date: file.file_date,
-            displayDate: file.display_date,
-            uploadDate: file.upload_date,
-            size: file.file_size,
-            data: null,
-            metadata: {
-              totalAgents: file.total_agents,
-              totalSMs: file.total_sms,
-              totalRevenue: file.total_revenue,
-              totalInflow: file.total_inflow,
-              totalNewClients: file.total_new_clients,
-              totalFastweb: file.total_fastweb
-            }
-          };
-        }
-      }));
-      
-      // *** FIX: Ordina i file per data nel nome, non per data upload ***
-      const sortedFiles = sortFilesByDate(processedFiles);
-      
-      // Crea anche il processedData per compatibilità
-      const processedData = {};
-      sortedFiles.forEach(file => {
-        if (file.data) {
-          processedData[file.date] = file.data;
-        }
-      });
-      
-      setData(prevData => ({
-        ...prevData,
-        uploadedFiles: sortedFiles, // ← Usa file ordinati per data
-        processedData: processedData
-      }));
-      
-    } catch (error) {
-      toast.error('Errore nel caricamento dei file dal server');
-      console.error('Load files error:', error);
-    } finally {
-      setLoading(false);
-    } 
-  }, [setData]); // ← FIX: Aggiungi dipendenza
-
-  // *** FIX: useEffect ora ha tutte le dipendenze corrette ***
-  React.useEffect(() => {
-    loadFiles();
-  }, [loadFiles]);
+  // ⚠️ IMPORTANTE: Ora loadFiles è gestito globalmente, non qui
 
   // *** AGGIORNATO: handleFileUpload per parser dinamico ***
   const handleFileUpload = async (event) => {
@@ -290,12 +391,29 @@ const FileUpload = ({ openDialog }) => {
       const parseResult = await parseExcelFile(file);
       
       if (!parseResult.success) {
-        toast.error(`❌ Errore nel parsing del file: ${parseResult.error}`, { id: 'upload' });
-        return;
+        if (parseResult.needsMapping) {
+          // 🆕 Gestisci mappatura manuale se necessaria
+          const userChoice = window.confirm(
+            `⚠️ ATTENZIONE: Alcune colonne non sono state trovate automaticamente.\n\n` +
+            `Colonne mancanti: ${parseResult.missingColumns.map(c => c.field).join(', ')}\n\n` +
+            `Colonne disponibili nel file: ${parseResult.availableColumns.slice(0, 10).join(', ')}${parseResult.availableColumns.length > 10 ? '...' : ''}\n\n` +
+            `Vuoi procedere comunque? I campi mancanti saranno impostati a 0.`
+          );
+          
+          if (!userChoice) {
+            toast.error('Caricamento annullato', { id: 'upload' });
+            return;
+          }
+          
+          // Per ora procediamo, in futuro si può implementare una mappatura manuale
+        } else {
+          toast.error(`❌ Errore nel parsing del file: ${parseResult.error}`, { id: 'upload' });
+          return;
+        }
       }
 
       // *** NUOVO: Gestione warnings per campi opzionali mancanti ***
-      if (parseResult.data.metadata.warnings && parseResult.data.metadata.warnings.length > 0) {
+      if (parseResult.data?.metadata?.warnings && parseResult.data.metadata.warnings.length > 0) {
         const warningCount = parseResult.data.metadata.warnings.length;
         const warningFields = parseResult.data.metadata.warnings.map(w => w.field).join(', ');
         
@@ -321,12 +439,12 @@ const FileUpload = ({ openDialog }) => {
           metadata: {
             totalAgents: parsedData.metadata.totalAgents,
             totalSMs: parsedData.metadata.totalSMs,
-            totalRevenue: parsedData.totals.fatturato,
-            totalInflow: parsedData.totals.inflow,
-            totalNewClients: parsedData.totals.nuoviClienti,
-            totalFastweb: parsedData.totals.fastwebEnergia || 0, // ← Gestisce se non esiste
+            totalRevenue: parsedData.metadata.totalRevenue,
+            totalInflow: parsedData.metadata.totalInflow,
+            totalNewClients: parsedData.metadata.totalNewClients,
+            totalFastweb: parsedData.metadata.totalFastweb || 0,
             parseDate: new Date().toISOString(),
-            warnings: parseResult.data.metadata.warnings
+            warnings: parsedData.metadata.warnings
           }
         };
 
@@ -336,8 +454,8 @@ const FileUpload = ({ openDialog }) => {
           // Success feedback con dettagli migliorati
           const agentsCount = parsedData.metadata.totalAgents;
           const smCount = parsedData.metadata.totalSMs;
-          const totalFatturato = parsedData.totals.fatturato;
-          const totalInflow = parsedData.totals.inflow;
+          const totalFatturato = parsedData.metadata.totalRevenue;
+          const totalInflow = parsedData.metadata.totalInflow;
           
           const actionText = result.action === 'updated' ? 'aggiornato' : 'caricato';
           toast.success(
@@ -349,6 +467,7 @@ const FileUpload = ({ openDialog }) => {
             { id: 'upload', duration: 5000 }
           );
 
+          // 🔧 FIX: Usa la funzione globale di caricamento
           await loadFiles();
         } else {
           throw new Error(result.error || 'Errore sconosciuto durante il caricamento');
@@ -395,7 +514,7 @@ const FileUpload = ({ openDialog }) => {
 
           toast.success('File eliminato con successo', { id: 'delete' });
 
-          // Ricarica la lista
+          // 🔧 FIX: Usa la funzione globale di ricaricamento
           await loadFiles();
 
         } catch (error) {
@@ -406,12 +525,13 @@ const FileUpload = ({ openDialog }) => {
     );
   };
 
-  if (loading) {
+  // 🔧 FIX: Mostra loading globale invece di loading locale
+  if (globalLoading) {
     return (
       <div className="file-upload-section">
         <div className="loading-indicator">
           <div className="loading-spinner"></div>
-          Caricamento file dal server...
+          Caricamento file dal database...
         </div>
       </div>
     );
@@ -484,13 +604,13 @@ const FileUpload = ({ openDialog }) => {
   );
 };
 
-// Componente Dashboard principale - AGGIORNATO
+// Componente Dashboard principale - AGGIORNATO per gestire loading globale
 const Dashboard = () => {
-  const { data, selectedFileDate, setSelectedFileDate } = useData();
+  const { data, selectedFileDate, setSelectedFileDate, globalLoading } = useData();
   const [loading, setLoading] = useState(false);
   
   // Effetto per gestire la selezione del periodo
-  React.useEffect(() => {
+  useEffect(() => {
     // Se non c'è una selezione e ci sono file, seleziona il più recente
     if (!selectedFileDate && data.uploadedFiles.length > 0) {
       setSelectedFileDate(data.uploadedFiles[0].date);
@@ -529,8 +649,21 @@ const Dashboard = () => {
     setTimeout(() => {
       setSelectedFileDate(newFileDate);
       setLoading(false);
-    }, 500); // Simula un caricamento per l'effetto di transizione
+    }, 300);
   };
+
+  // 🔧 FIX: Mostra loading globale durante il caricamento iniziale
+  if (globalLoading && data.uploadedFiles.length === 0) {
+    return (
+      <div className="dashboard-content">
+        <div className="loading-indicator">
+          <div className="loading-spinner"></div>
+          <p>Caricamento dati dal database...</p>
+          <small>Prima volta? Vai in "📁 Gestione File" per caricare il primo file Excel.</small>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-content">
@@ -552,51 +685,66 @@ const Dashboard = () => {
             </select>
           </div>
         ) : (
-           <p className="current-period">Nessun periodo disponibile</p>
+           <p className="current-period">Nessun periodo disponibile - Carica il primo file Excel</p>
         )}
       </div>
       
-      <div className="stats-grid">
-        <div className="stat-card" style={{ animationDelay: '200ms' }}>
-          <h3>Totale Agenti</h3>
-          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalAgents)}</div>
-        </div>
-        
-        <div className="stat-card" style={{ animationDelay: '300ms' }}>
-          <h3>SM Attivi</h3>
-          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalSMs)}</div>
-        </div>
-        
-        <div className="stat-card highlight" style={{ animationDelay: '400ms' }}>
-          <h3>Fatturato Totale</h3>
-          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalRevenue)}</div>
-        </div>
-        
-        <div className="stat-card highlight" style={{ animationDelay: '500ms' }}>
-          <h3>Inflow Totale</h3>
-          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalInflow)}</div>
-        </div>
-        
-        <div className="stat-card" style={{ animationDelay: '600ms' }}>
-          <h3>Nuovi Clienti</h3>
-          <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalNewClients)}</div>
-        </div>
-        
-        <div className="stat-card" style={{ animationDelay: '700ms' }}>
-          <h3>Contratti Fastweb</h3>
-          <div className={`stat-number ${loading ? 'loading' : ''}`}>
-            {stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--'}
+      {/* 🔧 FIX: Mostra stats solo se ci sono dati */}
+      {data.uploadedFiles.length > 0 ? (
+        <div className="stats-grid">
+          <div className="stat-card" style={{ animationDelay: '200ms' }}>
+            <h3>Totale Agenti</h3>
+            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalAgents)}</div>
           </div>
-          {stats.totalFastweb === 0 && (
-            <div className="stat-note">Non disponibile nel periodo</div>
-          )}
+          
+          <div className="stat-card" style={{ animationDelay: '300ms' }}>
+            <h3>SM Attivi</h3>
+            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalSMs)}</div>
+          </div>
+          
+          <div className="stat-card highlight" style={{ animationDelay: '400ms' }}>
+            <h3>Fatturato Totale</h3>
+            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalRevenue)}</div>
+          </div>
+          
+          <div className="stat-card highlight" style={{ animationDelay: '500ms' }}>
+            <h3>Inflow Totale</h3>
+            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalInflow)}</div>
+          </div>
+          
+          <div className="stat-card" style={{ animationDelay: '600ms' }}>
+            <h3>Nuovi Clienti</h3>
+            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalNewClients)}</div>
+          </div>
+          
+          <div className="stat-card" style={{ animationDelay: '700ms' }}>
+            <h3>Contratti Fastweb</h3>
+            <div className={`stat-number ${loading ? 'loading' : ''}`}>
+              {stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--'}
+            </div>
+            {stats.totalFastweb === 0 && (
+              <div className="stat-note">Non disponibile nel periodo</div>
+            )}
+          </div>
         </div>
-      </div>
-      
-      {data.uploadedFiles.length === 0 && (
+      ) : (
         <div className="welcome-message">
           <h3>👋 Benvenuto nella Dashboard RUSH!</h3>
-          <p>Per iniziare, carica il primo file Excel dalla sezione "Gestione File".</p>
+          <p>Per iniziare, carica il primo file Excel dalla sezione <strong>"📁 Gestione File"</strong>.</p>
+          <div className="welcome-steps">
+            <div className="step">
+              <span className="step-number">1</span>
+              <span>Vai in "📁 Gestione File"</span>
+            </div>
+            <div className="step">
+              <span className="step-number">2</span>
+              <span>Carica il file Excel mensile</span>
+            </div>
+            <div className="step">
+              <span className="step-number">3</span>
+              <span>Torna qui per vedere le statistiche!</span>
+            </div>
+          </div>
         </div>
       )}
       
@@ -626,17 +774,10 @@ const Dashboard = () => {
   );
 };
 
-// Componente principale con routing
-const MainApp = ({ currentUser, onLogout }) => {
+// Componente principale con routing - AGGIORNATO per usare DataProvider
+const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [data, setData] = useState({
-    uploadedFiles: [],
-    processedData: {},
-    selectedSM: null,
-    selectedAgent: null
-  });
   const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-  const [selectedFileDate, setSelectedFileDate] = useState(null);
 
   const openDialog = (title, message, onConfirm) => {
     setDialog({
@@ -676,7 +817,7 @@ const MainApp = ({ currentUser, onLogout }) => {
   };
 
   return (
-    <DataContext.Provider value={{ data, setData, selectedFileDate, setSelectedFileDate }}>
+    <DataProvider isAuthenticated={isAuthenticated}>
       <div className="app-layout">
         <Sidebar 
           activeSection={activeSection} 
@@ -698,7 +839,7 @@ const MainApp = ({ currentUser, onLogout }) => {
           message={dialog.message}
         />
       </div>
-    </DataContext.Provider>
+    </DataProvider>
   );
 };
 
@@ -709,7 +850,7 @@ function App() {
   const [initializing, setInitializing] = useState(true);
 
   // Controlla autenticazione all'avvio
-  React.useEffect(() => {
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         if (apiService.isAuthenticated()) {
@@ -782,7 +923,8 @@ function App() {
         ) : (
           <MainApp 
             currentUser={currentUser} 
-            onLogout={handleLogout} 
+            onLogout={handleLogout}
+            isAuthenticated={isAuthenticated}
           />
         )}
         <Toaster 
