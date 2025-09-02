@@ -390,8 +390,8 @@ function cleanCellValue(cell, expectedType = 'auto') {
   if (expectedType === 'number') {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
-      // Rimuovi simboli di valuta e separatori
-      value = value.toString().replace(/[€$,.\s]/g, '').replace(',', '.');
+      // Rimuovi simboli di valuta e separatori, mantenendo la virgola per i decimali
+      value = value.toString().replace(/[€$.\s]/g, '').replace(',', '.');
       const parsed = parseFloat(value);
       return isNaN(parsed) ? 0 : parsed;
     }
@@ -537,8 +537,8 @@ export async function parseExcelFile(file, userMapping = null) {
         
         const smData = smStats.get(agent.sm);
         smData.agenti.push(agent);
-        smData.fatturatoTotale += agent.fatturatoRush;
-        smData.inflowTotale += agent.fatturatoRush; // FIX: Allineato calcolo Inflow SM con FATTURATO RUSH
+        smData.fatturatoTotale += agent.fatturato.complessivo;
+        smData.inflowTotale += agent.inflowTotale;
         smData.nuoviClienti += agent.nuoviClienti;
         smData.totaleFastweb += agent.totaleFastweb;
         
@@ -552,8 +552,8 @@ export async function parseExcelFile(file, userMapping = null) {
     
     // 🔧 FIX: Calcola i totali CORRETTI
     const totals = agents.reduce((acc, agent) => {
-      acc.totalRevenue += agent.fatturatoRush;
-      acc.totalInflow += agent.fatturatoRush; // FIX: L'inflow totale ora usa il FATTURATO RUSH come da requisito
+      acc.totalRevenue += agent.fatturato.complessivo;
+      acc.totalInflow += agent.inflowTotale;
       acc.totalNewClients += agent.nuoviClienti;
       acc.totalFastweb += agent.totaleFastweb;
       return acc;
