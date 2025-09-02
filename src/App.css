@@ -274,6 +274,17 @@ body {
   transform: translateY(-5px);
 }
 
+.stat-card.highlight {
+  grid-column: span 2;
+  background-color: #e3f2fd; /* Un colore di sfondo leggermente diverso */
+}
+
+@media (max-width: 768px) {
+  .stat-card.highlight {
+    grid-column: span 1; /* Su mobile, le card tornano a colonna singola */
+  }
+}
+
 .stat-card h3 {
   color: var(--text-secondary);
   font-size: 14px;

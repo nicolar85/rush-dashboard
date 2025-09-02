@@ -556,11 +556,6 @@ const Dashboard = () => {
       </div>
       
       <div className="stats-grid">
-        <div className="stat-card" style={{ animationDelay: '100ms' }}>
-          <h3>File Caricati</h3>
-          <div className={`stat-number ${loading ? 'loading' : ''}`}>{data.uploadedFiles.length}</div>
-        </div>
-        
         <div className="stat-card" style={{ animationDelay: '200ms' }}>
           <h3>Totale Agenti</h3>
           <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalAgents)}</div>
@@ -571,12 +566,12 @@ const Dashboard = () => {
           <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalSMs)}</div>
         </div>
         
-        <div className="stat-card" style={{ animationDelay: '400ms' }}>
+        <div className="stat-card highlight" style={{ animationDelay: '400ms' }}>
           <h3>Fatturato Totale</h3>
           <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalRevenue)}</div>
         </div>
         
-        <div className="stat-card" style={{ animationDelay: '500ms' }}>
+        <div className="stat-card highlight" style={{ animationDelay: '500ms' }}>
           <h3>Inflow Totale</h3>
           <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalInflow)}</div>
         </div>
