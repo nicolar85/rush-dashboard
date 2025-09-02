@@ -538,7 +538,7 @@ export async function parseExcelFile(file, userMapping = null) {
         const smData = smStats.get(agent.sm);
         smData.agenti.push(agent);
         smData.fatturatoTotale += agent.fatturatoRush;
-        smData.inflowTotale += agent.inflow;
+        smData.inflowTotale += agent.fatturatoRush; // FIX: Allineato calcolo Inflow SM con FATTURATO RUSH
         smData.nuoviClienti += agent.nuoviClienti;
         smData.totaleFastweb += agent.totaleFastweb;
         
