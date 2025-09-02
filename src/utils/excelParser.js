@@ -30,6 +30,11 @@ const DYNAMIC_FIELD_PATTERNS = {
     required: true,
     description: 'Inflow dell\'agente'
   },
+  'FATTURATO_COMPLESSIVO': {
+    patterns: ['fatturato complessivo', 'fatturato totale', 'totale fatturato', 'fatturato agente'],
+    required: true,
+    description: 'Fatturato Complessivo dell\'agente'
+  },
   
   // Prodotti voce (opzionali ma importanti)
   'CASA': {
@@ -299,8 +304,14 @@ function parseAgentRow(worksheet, row, mapping) {
   
   // 🔧 FIX: Metriche finanziarie con calcolo corretto
   agent.fatturatoRush = getColumnValue('FATTURATO_RUSH', 'number');
-  agent.inflow = getColumnValue('INFLOW', 'number');
+  agent.inflow = getColumnValue('INFLOW', 'number'); // Mantenuto per retrocompatibilità o altri usi
   
+  // ⭐️ NUOVA STRUTTURA DATI PER IL FRONTEND (basata sui requisiti)
+  agent.fatturato = {
+    complessivo: getColumnValue('FATTURATO_COMPLESSIVO', 'number')
+  };
+  agent.inflowTotale = agent.fatturatoRush; // L'inflow dell'agente corrisponde al suo FATTURATO RUSH
+
   // Prodotti voce
   agent.casa = getColumnValue('CASA', 'number');
   agent.business = getColumnValue('BUSINESS', 'number');
@@ -542,7 +553,7 @@ export async function parseExcelFile(file, userMapping = null) {
     // 🔧 FIX: Calcola i totali CORRETTI
     const totals = agents.reduce((acc, agent) => {
       acc.totalRevenue += agent.fatturatoRush;
-      acc.totalInflow += agent.inflow;
+      acc.totalInflow += agent.fatturatoRush; // FIX: L'inflow totale ora usa il FATTURATO RUSH come da requisito
       acc.totalNewClients += agent.nuoviClienti;
       acc.totalFastweb += agent.totaleFastweb;
       return acc;
