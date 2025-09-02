@@ -518,11 +518,13 @@ const Dashboard = () => {
     // Se il file non si trova, usa il primo come fallback
     const fileToUse = targetFile || data.uploadedFiles[0];
 
-    if (!fileToUse || !fileToUse.metadata || !fileToUse.data) {
+    // FIX: Aggiunto controllo più robusto per la struttura dati nidificata
+    if (!fileToUse || !fileToUse.metadata || !fileToUse.data || !fileToUse.data.data || !Array.isArray(fileToUse.data.data.smStats)) {
       return emptyState;
     }
     
-    const chartData = fileToUse.data.smStats
+    // FIX: Corretto il percorso per accedere a smStats
+    const chartData = fileToUse.data.data.smStats
       .map(sm => ({
         name: sm.nome,
         'Fatturato': sm.totali.fatturato,
