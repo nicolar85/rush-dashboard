@@ -7,6 +7,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { apiService } from './services/apiService';
 // Import del parser Excel aggiornato
 import { parseExcelFile, formatCurrency, formatNumber, sortFilesByDate } from './utils/excelParser';
+import ConfirmationDialog from './components/ConfirmationDialog';
 import './App.css';
 
 // Context per la gestione dei dati
@@ -119,7 +120,7 @@ const Login = ({ onLogin }) => {
 };
 
 // Componente Sidebar
-const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout }) => {
+const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout, openDialog }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'sm-ranking', label: 'Classifica SM', icon: '🏅' },
@@ -131,9 +132,13 @@ const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout }) => 
   ];
 
   const handleLogout = async () => {
-    if (window.confirm('Sei sicuro di voler uscire?')) {
-      await onLogout();
-    }
+    openDialog(
+      'Conferma Logout',
+      'Sei sicuro di voler uscire?',
+      async () => {
+        await onLogout();
+      }
+    );
   };
 
   return (
@@ -174,7 +179,7 @@ const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout }) => 
 };
 
 // Componente File Upload
-const FileUpload = () => {
+const FileUpload = ({ openDialog }) => {
   const { data, setData } = useData();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -284,22 +289,20 @@ const FileUpload = () => {
       if (!parseResult.success) {
         if (parseResult.needsMapping) {
           // *** NUOVA GESTIONE: Chiedi mappatura manuale ***
-          const shouldProceed = window.confirm(
+          openDialog(
+            'Anomalie Rilevate',
             `⚠️ ANOMALIE RILEVATE NEL FILE ⚠️\n\n` +
             `Alcune colonne non sono state trovate automaticamente:\n` +
             `${parseResult.details.missingHeaders.join(', ')}\n\n` +
             `Al momento non è implementata la mappatura manuale.\n` +
-            `Vuoi procedere comunque? I dati mancanti saranno a zero.`
+            `Vuoi procedere comunque? I dati mancanti saranno a zero.`,
+            () => {
+              toast.warning('La mappatura manuale non è ancora implementata. Impossibile procedere.', { id: 'upload' });
+            },
+            () => {
+              toast.error('Upload annullato dall\'utente', { id: 'upload' });
+            }
           );
-          
-          if (!shouldProceed) {
-            toast.error('Upload annullato dall\'utente', { id: 'upload' });
-            return;
-          }
-          
-          // Per ora procedi con mappatura parziale
-          toast.warning('Procedendo con mappatura parziale - alcuni dati potrebbero essere errati', { id: 'upload' });
-          // TODO: Implementare interfaccia di mappatura manuale
           return; // Per ora blocca
         } else {
           toast.error(`Errore nel parsing: ${parseResult.error}`, { id: 'upload' });
@@ -310,48 +313,51 @@ const FileUpload = () => {
       const { data: parsedData } = parseResult;
       const fileDate = parsedData.fileInfo.dateInfo.dateString;
 
+      const uploadFile = async () => {
+        const fileData = {
+          name: file.name,
+          date: fileDate,
+          displayDate: parsedData.fileInfo.dateInfo.displayDate,
+          size: file.size,
+          data: parsedData,
+          metadata: {
+            totalAgents: parsedData.metadata.totalAgents,
+            totalSMs: parsedData.metadata.totalSMs,
+            parseDate: new Date().toISOString()
+          }
+        };
+
+        const result = await apiService.saveFile(fileData);
+
+        if (result.success) {
+          const actionText = result.action === 'updated' ? 'aggiornato' : 'caricato';
+          toast.success(
+            `File ${actionText} con successo! ${result.stats?.total_agents || 0} agenti importati`,
+            { id: 'upload' }
+          );
+
+          await loadFiles();
+        } else {
+          throw new Error(result.error || 'Errore sconosciuto durante il caricamento');
+        }
+      };
+
       // Controlla duplicati localmente
       const existingFile = data.uploadedFiles.find(f => f.date === fileDate);
       
       if (existingFile) {
         toast.dismiss('upload');
-        const confirm = window.confirm(
-          `Esiste già un file per ${parsedData.fileInfo.dateInfo.displayDate}. Vuoi sovrascriverlo?`
+        openDialog(
+          'Sovrascrivi file',
+          `Esiste già un file per ${parsedData.fileInfo.dateInfo.displayDate}. Vuoi sovrascriverlo?`,
+          () => {
+            toast.loading('Aggiornamento file...', { id: 'upload' });
+            uploadFile();
+          }
         );
-        if (!confirm) return;
-        toast.loading('Aggiornamento file...', { id: 'upload' });
       } else {
         toast.loading('Caricamento file sul server...', { id: 'upload' });
-      }
-
-      // Prepara dati per API
-      const fileData = {
-        name: file.name,
-        date: fileDate,
-        displayDate: parsedData.fileInfo.dateInfo.displayDate,
-        size: file.size,
-        data: parsedData,
-        metadata: {
-          totalAgents: parsedData.metadata.totalAgents,
-          totalSMs: parsedData.metadata.totalSMs,
-          parseDate: new Date().toISOString()
-        }
-      };
-
-      // Salva nel database tramite API
-      const result = await apiService.saveFile(fileData);
-      
-      if (result.success) {
-        const actionText = result.action === 'updated' ? 'aggiornato' : 'caricato';
-        toast.success(
-          `File ${actionText} con successo! ${result.stats?.total_agents || 0} agenti importati`, 
-          { id: 'upload' }
-        );
-        
-        // Ricarica la lista files dal server
-        await loadFiles();
-      } else {
-        throw new Error(result.error || 'Errore sconosciuto durante il caricamento');
+        await uploadFile();
       }
 
     } catch (error) {
@@ -364,24 +370,26 @@ const FileUpload = () => {
   };
 
   const handleDeleteFile = async (fileDate, fileName) => {
-    if (!window.confirm(`Sei sicuro di voler eliminare il file ${fileName}?`)) {
-      return;
-    }
+    openDialog(
+      'Conferma Eliminazione',
+      `Sei sicuro di voler eliminare il file ${fileName}?`,
+      async () => {
+        try {
+          toast.loading('Eliminazione file...', { id: 'delete' });
 
-    try {
-      toast.loading('Eliminazione file...', { id: 'delete' });
-      
-      await apiService.deleteFile(fileDate);
-      
-      toast.success('File eliminato con successo', { id: 'delete' });
-      
-      // Ricarica la lista
-      await loadFiles();
-      
-    } catch (error) {
-      toast.error(`Errore nell'eliminazione: ${error.message}`, { id: 'delete' });
-      console.error('Delete error:', error);
-    }
+          await apiService.deleteFile(fileDate);
+
+          toast.success('File eliminato con successo', { id: 'delete' });
+
+          // Ricarica la lista
+          await loadFiles();
+
+        } catch (error) {
+          toast.error(`Errore nell'eliminazione: ${error.message}`, { id: 'delete' });
+          console.error('Delete error:', error);
+        }
+      }
+    );
   };
 
   if (loading) {
@@ -564,13 +572,30 @@ const MainApp = ({ currentUser, onLogout }) => {
     selectedSM: null,
     selectedAgent: null
   });
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+  const openDialog = (title, message, onConfirm) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        handleCloseDialog();
+      }
+    });
+  };
+
+  const handleCloseDialog = () => {
+    setDialog({ ...dialog, isOpen: false });
+  };
 
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
         return <Dashboard />;
       case 'files':
-        return <FileUpload />;
+        return <FileUpload openDialog={openDialog} />;
       case 'sm-ranking':
         return <div className="section-placeholder">🏅 Classifica SM - Disponibile dopo caricamento componenti avanzati</div>;
       case 'agents':
@@ -594,12 +619,20 @@ const MainApp = ({ currentUser, onLogout }) => {
           setActiveSection={setActiveSection}
           currentUser={currentUser}
           onLogout={onLogout}
+          openDialog={openDialog}
         />
         <main className="main-content">
           <div className="content-container">
             {renderContent()}
           </div>
         </main>
+        <ConfirmationDialog
+          open={dialog.isOpen}
+          onClose={handleCloseDialog}
+          onConfirm={dialog.onConfirm}
+          title={dialog.title}
+          message={dialog.message}
+        />
       </div>
     </DataContext.Provider>
   );
