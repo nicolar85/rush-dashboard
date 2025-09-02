@@ -8,6 +8,7 @@ import { apiService } from './services/apiService';
 // Import del parser Excel aggiornato
 import { parseExcelFile, formatCurrency, formatNumber, sortFilesByDate } from './utils/excelParser';
 import ConfirmationDialog from './components/ConfirmationDialog';
+import Agents from './components/Agents'; // Importa il nuovo componente
 import './App.css';
 
 // Context per la gestione dei dati
@@ -662,7 +663,7 @@ const MainApp = ({ currentUser, onLogout }) => {
       case 'sm-ranking':
         return <div className="section-placeholder">🏅 Classifica SM - Disponibile dopo caricamento componenti avanzati</div>;
       case 'agents':
-        return <div className="section-placeholder">👥 Dettagli Agenti - Disponibile dopo caricamento componenti avanzati</div>;
+        return <Agents />;
       case 'products':
         return <div className="section-placeholder">📦 Analisi Prodotti - Disponibile dopo caricamento componenti avanzati</div>;
       case 'new-clients':
