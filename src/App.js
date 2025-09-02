@@ -206,10 +206,10 @@ const FileUpload = ({ openDialog }) => {
             metadata: {
               totalAgents: fileData.metadata.totalAgents,
               totalSMs: fileData.metadata.totalSMs,
-              totalRevenue: fileData.totals.fatturato,
-              totalInflow: fileData.totals.inflow,
-              totalNewClients: fileData.totals.nuoviClienti,
-              totalFastweb: fileData.totals.fastwebEnergia || 0
+              totalRevenue: fileData.metadata.totalRevenue,
+              totalInflow: fileData.metadata.totalInflow,
+              totalNewClients: fileData.metadata.totalNewClients,
+              totalFastweb: fileData.metadata.totalFastweb || 0
             }
           };
         } catch (error) {
