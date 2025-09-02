@@ -49,11 +49,11 @@ const Agents = () => {
     },
     { field: 'sm', headerName: 'SM', width: 150 },
     {
-      field: 'fatturato.complessivo',
+      field: 'fatturatoComplessivo',
       headerName: 'Fatturato',
       width: 130,
       type: 'number',
-      valueGetter: (params) => params.row.fatturato.complessivo,
+      valueGetter: (params) => params.row.fatturato?.complessivo || 0,
       renderCell: (params) => (
         <div className="currency-cell">{formatCurrency(params.value)}</div>
       ),
@@ -86,11 +86,11 @@ const Agents = () => {
       ),
     },
     {
-      field: 'totaliProdotti.pezziTotali',
+      field: 'calculatedPezziTotali',
       headerName: 'Pezzi Totali',
       width: 120,
       type: 'number',
-      valueGetter: (params) => params.row.totaliProdotti.pezziTotali,
+      valueGetter: (params) => params.row.totaliProdotti?.pezziTotali || 0,
       renderCell: (params) => (
         <div className="number-cell">{formatNumber(params.value)}</div>
       ),
