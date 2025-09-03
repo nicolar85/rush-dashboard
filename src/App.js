@@ -9,6 +9,7 @@ import { apiService } from './services/apiService';
 import { parseExcelFile, formatCurrency, formatNumber, sortFilesByDate } from './utils/excelParser';
 import ConfirmationDialog from './components/ConfirmationDialog';
 import ModernAgentsPage from './components/ModernAgentsPage'; // Importa la nuova pagina agenti
+import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova pagina classifica SM
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import './App.css';
 
@@ -804,7 +805,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'files':
         return <FileUpload openDialog={openDialog} />;
       case 'sm-ranking':
-        return <div className="section-placeholder">🏅 Classifica SM - Disponibile dopo caricamento componenti avanzati</div>;
+        return <ModernSMRanking />;
       case 'agents':
         return <ModernAgentsPage />;
       case 'products':
