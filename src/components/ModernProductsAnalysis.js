@@ -57,7 +57,7 @@ const ModernProductsAnalysis = () => {
       name: 'Prodotti Speciali',
       icon: Award,
       color: 'from-pink-500 to-pink-600',
-      products: ['nuovoCliente', 'station']
+      products: ['station']
     }
   };
 
@@ -72,8 +72,7 @@ const ModernProductsAnalysis = () => {
         fibra: { volume: 120, fatturato: 480000, trend: 15.7, topAgents: ['Chiara Verde', 'Matteo Giallo', 'Sofia Marino'] },
         fastwebEnergia: { volume: 85, fatturato: 170000, trend: 22.8, topAgents: ['Andrea Rosa', 'Laura Costa', 'Diego Viola'] },
         sdm: { volume: 45, fatturato: 90000, trend: 5.2, topAgents: ['Marco Verdi', 'Elena Blu', 'Luca Rosso'] },
-        cloudNas: { volume: 35, fatturato: 105000, trend: 18.4, topAgents: ['Anna Gialla', 'Pietro Nero', 'Carla Bianca'] },
-        nuovoCliente: { volume: 320, fatturato: 0, trend: 9.8, topAgents: ['Team Leader A', 'Team Leader B', 'Team Leader C'] }
+        cloudNas: { volume: 35, fatturato: 105000, trend: 18.4, topAgents: ['Anna Gialla', 'Pietro Nero', 'Carla Bianca'] }
       };
     }
 
@@ -98,7 +97,6 @@ const ModernProductsAnalysis = () => {
       miia: 'MIIA',
       easyGdpr: 'Easy GDPR',
       fastwebEnergia: 'Fastweb Energia',
-      nuovoCliente: 'Nuovo Cliente',
       station: 'Station'
     };
 
