@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useData } from '../App';
 import {
   Trophy, Crown, Medal, Target, Users, TrendingUp,
-  DollarSign, Award, Zap, Calendar, Filter,
+  DollarSign, Filter,
   ChevronDown, ChevronUp, Star, BarChart3
 } from 'lucide-react';
 import './ModernSMRanking.css';

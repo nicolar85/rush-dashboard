@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { User, TrendingUp, DollarSign, Award, Phone, Smartphone, Globe, Shield, X, Calendar, MapPin } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../utils/excelParser';
 
