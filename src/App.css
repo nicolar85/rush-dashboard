@@ -222,8 +222,9 @@ body {
 }
 
 .content-container {
-  padding: 32px;
-  max-width: 1200px;
+  padding: 24px 48px;
+  width: 100%;
+  max-width: 1800px;
   margin: 0 auto;
 }
 
