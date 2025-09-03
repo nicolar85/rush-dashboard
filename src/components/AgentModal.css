@@ -112,6 +112,35 @@
     color: #1e293b;
 }
 
+.modal-stats-grid-small {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.stat-item-small {
+    background-color: #f8fafc;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.stat-item-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
+.stat-item-value {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
 .modal-stat.highlight p {
     color: #16a34a;
 }
