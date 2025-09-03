@@ -40,7 +40,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
         const agentData = file.data?.agents?.find(a => a.nome === agent.nome);
         return agentData ? {
           period: file.displayDate,
-          inflow: agentData.inflowTotale || 0,
+          fatturatoRush: agentData.fatturatoRush || 0,
           revenue: agentData.fatturato?.complessivo || 0,
         } : null;
       })
@@ -54,7 +54,6 @@ const AgentModal = ({ agent, allData, onClose }) => {
       .map(([name, values]) => ({
         name: name.replace(/([A-Z])/g, ' $1').trim(),
         pezzi: values.pezzi || 0,
-        inflow: values.inflow || 0,
       }))
       .filter(p => p.pezzi > 0)
       .sort((a, b) => b.pezzi - a.pezzi);
@@ -89,8 +88,8 @@ const AgentModal = ({ agent, allData, onClose }) => {
             <h3>Riepilogo Performance</h3>
             <div className="modal-stats-grid">
               <div className="modal-stat"><h4>Fatturato Complessivo</h4><p>{formatCurrency(agent.fatturato?.complessivo || 0)}</p></div>
-              <div className="modal-stat highlight"><h4>Inflow Totale</h4><p>{formatCurrency(agent.inflowTotale || 0)}</p></div>
-              <div className="modal-stat"><h4>Nuovi Clienti</h4><p>{formatNumber(agent.nuoviClienti || 0)}</p></div>
+              <div className="modal-stat highlight"><h4>Fatturato Rush</h4><p>{formatCurrency(agent.fatturatoRush || 0)}</p></div>
+              <div className="modal-stat"><h4>Nuovo Cliente</h4><p>{formatNumber(agent.nuovoCliente || 0)}</p></div>
               <div className="modal-stat"><h4>Contratti Fastweb</h4><p>{formatNumber(agent.fastwebEnergia || 0)}</p></div>
             </div>
           </div>
@@ -103,11 +102,11 @@ const AgentModal = ({ agent, allData, onClose }) => {
                   <LineChart data={historicalData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="period" />
-                    <YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Inflow', angle: -90, position: 'insideLeft' }} />
+                    <YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Fatturato Rush', angle: -90, position: 'insideLeft' }} />
                     <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Fatturato', angle: -90, position: 'insideRight' }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="inflow" name="Inflow" stroke="#8884d8" activeDot={{ r: 8 }} />
+                    <Line yAxisId="left" type="monotone" dataKey="fatturatoRush" name="Fatturato Rush" stroke="#8884d8" activeDot={{ r: 8 }} />
                     <Line yAxisId="right" type="monotone" dataKey="revenue" name="Fatturato" stroke="#82ca9d" />
                   </LineChart>
                 </ResponsiveContainer>
