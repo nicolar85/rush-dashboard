@@ -132,6 +132,18 @@ const ModernSMRanking = () => {
     }
   };
 
+  const handleMetricChange = (metric) => {
+    setSelectedMetric(metric);
+    if (metric === 'rush') {
+      setSortBy('totalRush');
+    } else if (metric === 'revenue') {
+      setSortBy('totalRevenue');
+    } else if (metric === 'team') {
+      setSortBy('totalAgents');
+    }
+    setSortOrder('desc');
+  };
+
   const getRankIcon = (index) => {
     switch (index) {
       case 0: return <Crown size={24} className="text-yellow-500" />;
@@ -197,21 +209,21 @@ const ModernSMRanking = () => {
             <div className="metric-buttons">
               <button
                 className={`metric-btn ${selectedMetric === 'rush' ? 'active' : ''}`}
-                onClick={() => setSelectedMetric('rush')}
+                onClick={() => handleMetricChange('rush')}
               >
                 <TrendingUp size={16} />
                 Rush Focus
               </button>
               <button
                 className={`metric-btn ${selectedMetric === 'revenue' ? 'active' : ''}`}
-                onClick={() => setSelectedMetric('revenue')}
+                onClick={() => handleMetricChange('revenue')}
               >
                 <DollarSign size={16} />
                 Fatturato
               </button>
               <button
                 className={`metric-btn ${selectedMetric === 'team' ? 'active' : ''}`}
-                onClick={() => setSelectedMetric('team')}
+                onClick={() => handleMetricChange('team')}
               >
                 <Users size={16} />
                 Team
@@ -332,20 +344,54 @@ const ModernSMRanking = () => {
                 </div>
 
                 <div className="sm-metrics">
-                  <div className="metric-item primary">
-                    <span className="metric-label">Rush Totale</span>
-                    <span className={`metric-value ${getMetricColor(sm.totalRush, 'rush')}`}>
-                      {formatCurrency(sm.totalRush)}
-                    </span>
-                  </div>
-
-                  <div className="metric-item secondary">
-                    <span className="metric-label">Fatturato</span>
-                    <span className={`metric-value ${getMetricColor(sm.totalRevenue, 'revenue')}`}>
-                      {formatCurrency(sm.totalRevenue)}
-                    </span>
-                  </div>
-
+                  {selectedMetric === 'rush' && (
+                    <>
+                      <div className="metric-item primary">
+                        <span className="metric-label">Rush Totale</span>
+                        <span className={`metric-value ${getMetricColor(sm.totalRush, 'rush')}`}>
+                          {formatCurrency(sm.totalRush)}
+                        </span>
+                      </div>
+                      <div className="metric-item secondary">
+                        <span className="metric-label">Fatturato</span>
+                        <span className={`metric-value ${getMetricColor(sm.totalRevenue, 'revenue')}`}>
+                          {formatCurrency(sm.totalRevenue)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {selectedMetric === 'revenue' && (
+                    <>
+                      <div className="metric-item primary">
+                        <span className="metric-label">Fatturato</span>
+                        <span className={`metric-value ${getMetricColor(sm.totalRevenue, 'revenue')}`}>
+                          {formatCurrency(sm.totalRevenue)}
+                        </span>
+                      </div>
+                      <div className="metric-item secondary">
+                        <span className="metric-label">Rush Totale</span>
+                        <span className={`metric-value ${getMetricColor(sm.totalRush, 'rush')}`}>
+                          {formatCurrency(sm.totalRush)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {selectedMetric === 'team' && (
+                    <>
+                      <div className="metric-item primary">
+                        <span className="metric-label">Agenti</span>
+                        <span className="metric-value">
+                          {formatNumber(sm.totalAgents)}
+                        </span>
+                      </div>
+                      <div className="metric-item secondary">
+                        <span className="metric-label">Rush Medio</span>
+                        <span className="metric-value">
+                          {formatCurrency(sm.avgRush)}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div className="metric-item tertiary">
                     <span className="metric-label">Nuovi Clienti</span>
                     <span className="metric-value text-purple-600">
