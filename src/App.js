@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, createContext, useContext, useEffect, useCallback } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import toast, { Toaster } from 'react-hot-toast';
@@ -16,10 +16,6 @@ import ModernDashboard from './components/ModernDashboard'; // Importa la nuova 
 import './App.css';
 import './components/ModernDashboard.css'; // 💅 Importa i nuovi stili per la Dashboard
 import './components/ModernLogin.css'; // ✨ Importa i nuovi stili per il Login
-import {
-  LayoutDashboard, Users, Briefcase, TrendingUp,
-  DollarSign, ClipboardList, Zap, Calendar, FileWarning
-} from 'lucide-react';
 
 
 // Context per la gestione dei dati - AGGIORNATO con caricamento globale
@@ -657,7 +653,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'test':
         return <TestPage />;
       default:
-        return <Dashboard />;
+        return <ModernDashboard />;
     }
   };
 
