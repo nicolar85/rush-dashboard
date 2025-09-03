@@ -3,6 +3,7 @@ import { useData } from '../App'; // Importa il context
 import AgentCard from './AgentCard'; // Importa la VERA AgentCard
 import AgentModal from './AgentModal'; // Importa la VERA AgentModal
 import { Search, Filter, Users, TrendingUp, Award, BarChart3, RefreshCw } from 'lucide-react';
+import { Slider } from '@mui/material';
 
 const ModernAgentsPage = () => {
   const { data, selectedFileDate, loadFiles, globalLoading } = useData(); // Usa i dati reali
@@ -175,11 +176,17 @@ const ModernAgentsPage = () => {
             </select>
           </div>
           <div className="filter-group range-group">
-            <label className="filter-label"><TrendingUp size={16} /> Range Fatturato Rush: €{filters.fatturatoRushRange[0].toLocaleString()} - €{filters.fatturatoRushRange[1].toLocaleString()}</label>
-            <div className="range-slider-wrapper">
-              <input type="range" min="0" max={maxFatturatoRush} step="100" value={filters.fatturatoRushRange[0]} onChange={(e) => handleFilterChange('fatturatoRushRange', [parseInt(e.target.value), filters.fatturatoRushRange[1]])} className="range-slider" />
-              <input type="range" min="0" max={maxFatturatoRush} step="100" value={filters.fatturatoRushRange[1]} onChange={(e) => handleFilterChange('fatturatoRushRange', [filters.fatturatoRushRange[0], parseInt(e.target.value)])} className="range-slider" />
-            </div>
+            <label className="filter-label"><TrendingUp size={16} /> Range Fatturato Rush</label>
+            <Slider
+              value={filters.fatturatoRushRange}
+              onChange={(e, newValue) => handleFilterChange('fatturatoRushRange', newValue)}
+              valueLabelDisplay="auto"
+              min={0}
+              max={maxFatturatoRush}
+              step={100}
+              valueLabelFormat={value => `€${value.toLocaleString('it-IT')}`}
+              sx={{ mt: 2 }}
+            />
           </div>
           <div className="filter-group preset-group">
             <label className="filter-label">Filtri Rapidi</label>
@@ -251,10 +258,6 @@ const ModernAgentsPage = () => {
         .modern-search-input, .modern-select { width: 100%; padding: 16px 20px; border-radius: 12px; border: 2px solid #e2e8f0; font-size: 1rem; background: white; transition: all 0.2s ease; }
         .modern-search-input:focus, .modern-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
         .range-group { grid-column: span 2; }
-        .range-slider-wrapper { position: relative; height: 40px; background: #f1f5f9; border-radius: 12px; padding: 8px 16px; }
-        .range-slider { position: absolute; top: 50%; left: 16px; right: 16px; transform: translateY(-50%); -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: #e2e8f0; outline: none; }
-        .range-slider:nth-child(2) { background: transparent; }
-        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         .preset-group { grid-column: span 2; }
         .preset-buttons { display: flex; flex-wrap: wrap; gap: 12px; }
         .preset-btn { padding: 12px 20px; border-radius: 12px; border: 2px solid #e2e8f0; background: white; color: #64748b; font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; }
