@@ -13,9 +13,12 @@ import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova 
 import ModernProductsAnalysis from './components/ModernProductsAnalysis'; // Importa la nuova pagina prodotti
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import ModernDashboard from './components/ModernDashboard'; // Importa la nuova dashboard
+import ModernSidebar from './components/ModernSidebar';
+import ModernTopbar from './components/ModernTopbar';
 import './App.css';
 import './components/ModernDashboard.css'; // 💅 Importa i nuovi stili per la Dashboard
 import './components/ModernLogin.css'; // ✨ Importa i nuovi stili per il Login
+import './ModernAppLayout.css';
 
 
 // Context per la gestione dei dati - AGGIORNATO con caricamento globale
@@ -308,65 +311,6 @@ const Login = ({ onLogin }) => {
   );
 };
 
-// Componente Sidebar
-const Sidebar = ({ activeSection, setActiveSection, currentUser, onLogout, openDialog }) => {
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'sm-ranking', label: 'Classifica SM', icon: '🏅' },
-    { id: 'agents', label: 'Agenti', icon: '👥' },
-    { id: 'products', label: 'Prodotti', icon: '📦' },
-    { id: 'new-clients', label: 'Nuovi Clienti', icon: '🆕' },
-    { id: 'fastweb', label: 'Fastweb', icon: '⚡' },
-    { id: 'files', label: 'Gestione File', icon: '📁' },
-    { id: 'test', label: 'Test', icon: '🧪' },
-  ];
-
-  const handleLogout = async () => {
-    openDialog(
-      'Conferma Logout',
-      'Sei sicuro di voler uscire?',
-      async () => {
-        await onLogout();
-      }
-    );
-  };
-
-  return (
-    <div className="sidebar">
-      <div className="sidebar-header">
-        <h2>🏆 RUSH</h2>
-        {currentUser && (
-          <div className="user-info">
-            <p className="user-name">{currentUser.full_name || currentUser.username}</p>
-            <p className="user-role">{currentUser.role === 'admin' ? '👑 Admin' : '👤 Viewer'}</p>
-          </div>
-        )}
-      </div>
-      
-      <nav className="sidebar-nav">
-        {menuItems.map(item => (
-          <button
-            key={item.id}
-            className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
-            onClick={() => setActiveSection(item.id)}
-          >
-            <span className="nav-icon">{item.icon}</span>
-            <span className="nav-label">{item.label}</span>
-          </button>
-        ))}
-      </nav>
-      
-      <div className="sidebar-footer">
-        <button className="logout-btn" onClick={handleLogout}>
-          🚪 Logout
-        </button>
-        <div className="version-info">
-          <small>v1.0.0</small>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Componente File Upload - SEMPLIFICATO (non più responsabile del caricamento globale)
 const FileUpload = ({ openDialog }) => {
@@ -617,6 +561,31 @@ const FileUpload = ({ openDialog }) => {
 const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setIsCollapsed(true);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('dark-mode', isDarkMode);
+    if (isDarkMode) {
+      document.documentElement.style.setProperty('color-scheme', 'dark');
+    } else {
+      document.documentElement.style.setProperty('color-scheme', 'light');
+    }
+  }, [isDarkMode]);
 
   const openDialog = (title, message, onConfirm) => {
     setDialog({
@@ -659,19 +628,34 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
 
   return (
     <DataProvider isAuthenticated={isAuthenticated}>
-      <div className="app-layout">
-        <Sidebar 
-          activeSection={activeSection} 
+      <div className={`modern-app-container ${isDarkMode ? 'dark' : ''}`}>
+        <ModernSidebar
+          activeSection={activeSection}
           setActiveSection={setActiveSection}
           currentUser={currentUser}
           onLogout={onLogout}
-          openDialog={openDialog}
+          isMobile={isMobile}
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
         />
-        <main className="main-content">
-          <div className="content-container">
+
+        <div className="main-app-area">
+          <ModernTopbar
+            activeSection={activeSection}
+            isMobile={isMobile}
+            isCollapsed={isCollapsed}
+            setIsCollapsed={setIsCollapsed}
+            currentUser={currentUser}
+            isDarkMode={isDarkMode}
+          />
+
+          <main className={`modern-main-content ${isDarkMode ? 'dark' : ''}`}>
             {renderContent()}
-          </div>
-        </main>
+          </main>
+        </div>
+
         <ConfirmationDialog
           open={dialog.isOpen}
           onClose={handleCloseDialog}
