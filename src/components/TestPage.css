@@ -1,0 +1,35 @@
+.test-page-container {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-top: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+thead {
+  background-color: #f2f2f2;
+}
+
+th {
+  font-weight: bold;
+}
+
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
