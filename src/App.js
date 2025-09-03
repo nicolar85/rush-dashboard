@@ -13,6 +13,7 @@ import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova 
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import './App.css';
 import './components/ModernDashboard.css'; // 💅 Importa i nuovi stili per la Dashboard
+import './components/ModernLogin.css'; // ✨ Importa i nuovi stili per il Login
 import {
   LayoutDashboard, Users, Briefcase, TrendingUp,
   DollarSign, ClipboardList, Zap, Calendar, FileWarning
@@ -233,7 +234,7 @@ const theme = createTheme({
   },
 });
 
-// Componente Login
+// ✨ Componente Login Moderno
 const Login = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -260,48 +261,48 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <h1>🏆 RUSH Dashboard</h1>
+    <div className="modern-login-container">
+      <div className="modern-login-card">
+        <div className="modern-login-header">
+          <h1>🏆 RUSH</h1>
           <p>Gara di Produzione Agenti</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
+        <form onSubmit={handleSubmit} className="modern-login-form">
+          <div className="modern-form-group">
             <label htmlFor="username">Username</label>
             <input
               id="username"
               type="text"
               value={credentials.username}
               onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-              placeholder="Inserisci username"
+              placeholder="es. mario.rossi"
               required
             />
           </div>
           
-          <div className="form-group">
+          <div className="modern-form-group">
             <label htmlFor="password">Password</label>
             <input
               id="password"
               type="password"
               value={credentials.password}
               onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-              placeholder="Inserisci password"
+              placeholder="••••••••"
               required
             />
           </div>
           
           <button 
             type="submit" 
-            className={`login-btn ${loading ? 'loading' : ''}`}
+            className={`modern-login-btn ${loading ? 'loading' : ''}`}
             disabled={loading}
           >
             {loading ? 'Accesso...' : 'Accedi'}
           </button>
         </form>
         
-        <div className="login-footer">
+        <div className="modern-login-footer">
           <small>Credenziali demo: admin / rush2025</small>
         </div>
       </div>
