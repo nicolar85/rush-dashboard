@@ -110,6 +110,12 @@ const ModernAgentsPage = () => {
     return { totalAgents, avgRush, topPerformer, totalRevenue };
   }, [agents]);
 
+  const marks = [
+    { value: 0, label: '0€' },
+    { value: 500, label: '500€' },
+    { value: 1000, label: '1k€' },
+    { value: maxFatturatoRush, label: `${(maxFatturatoRush / 1000).toFixed(0)}k€` }
+  ];
 
   return (
     <div className="modern-agents-container">
@@ -184,6 +190,7 @@ const ModernAgentsPage = () => {
               min={0}
               max={maxFatturatoRush}
               step={100}
+              marks={marks}
               valueLabelFormat={value => `€${value.toLocaleString('it-IT')}`}
               sx={{ mt: 2 }}
             />
