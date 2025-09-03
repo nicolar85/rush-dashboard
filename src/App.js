@@ -10,6 +10,7 @@ import { parseExcelFile, formatCurrency, formatNumber, sortFilesByDate } from '.
 import ConfirmationDialog from './components/ConfirmationDialog';
 import ModernAgentsPage from './components/ModernAgentsPage'; // Importa la nuova pagina agenti
 import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova pagina classifica SM
+import ModernProductsAnalysis from './components/ModernProductsAnalysis'; // Importa la nuova pagina prodotti
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import './App.css';
 import './components/ModernDashboard.css'; // 💅 Importa i nuovi stili per la Dashboard
@@ -800,7 +801,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'agents':
         return <ModernAgentsPage />;
       case 'products':
-        return <div className="section-placeholder">📦 Analisi Prodotti - Disponibile dopo caricamento componenti avanzati</div>;
+        return <ModernProductsAnalysis />;
       case 'new-clients':
         return <div className="section-placeholder">🆕 Nuovi Clienti - Disponibile dopo caricamento componenti avanzati</div>;
       case 'fastweb':
