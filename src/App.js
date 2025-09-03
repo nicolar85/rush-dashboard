@@ -90,7 +90,7 @@ const DataProvider = ({ children, isAuthenticated }) => {
               totalAgents: fileData.metadata?.totalAgents || 0,
               totalSMs: fileData.metadata?.totalSMs || 0,
               totalRevenue: fileData.metadata?.totalRevenue || 0,
-              totalInflow: fileData.metadata?.totalInflow || 0,
+              totalRush: fileData.metadata?.totalRush || 0,
               totalNewClients: fileData.metadata?.totalNewClients || 0,
               totalFastweb: fileData.metadata?.totalFastweb || 0
             } : {
@@ -98,7 +98,7 @@ const DataProvider = ({ children, isAuthenticated }) => {
               totalAgents: file.total_agents || 0,
               totalSMs: file.total_sms || 0,
               totalRevenue: file.total_revenue || 0,
-              totalInflow: file.total_inflow || 0,
+              totalRush: file.total_rush || 0,
               totalNewClients: file.total_new_clients || 0,
               totalFastweb: file.total_fastweb || 0
             }
@@ -117,7 +117,7 @@ const DataProvider = ({ children, isAuthenticated }) => {
               totalAgents: 0,
               totalSMs: 0,
               totalRevenue: 0,
-              totalInflow: 0,
+              totalRush: 0,
               totalNewClients: 0,
               totalFastweb: 0
             }
@@ -442,7 +442,7 @@ const FileUpload = ({ openDialog }) => {
             totalAgents: parsedData.metadata.totalAgents,
             totalSMs: parsedData.metadata.totalSMs,
             totalRevenue: parsedData.metadata.totalRevenue,
-            totalInflow: parsedData.metadata.totalInflow,
+            totalRush: parsedData.metadata.totalRush,
             totalNewClients: parsedData.metadata.totalNewClients,
             totalFastweb: parsedData.metadata.totalFastweb || 0,
             parseDate: new Date().toISOString(),
@@ -457,7 +457,7 @@ const FileUpload = ({ openDialog }) => {
           const agentsCount = parsedData.metadata.totalAgents;
           const smCount = parsedData.metadata.totalSMs;
           const totalFatturato = parsedData.metadata.totalRevenue;
-          const totalInflow = parsedData.metadata.totalInflow;
+          const totalRush = parsedData.metadata.totalRush;
           
           const actionText = result.action === 'updated' ? 'aggiornato' : 'caricato';
           toast.success(
@@ -465,7 +465,7 @@ const FileUpload = ({ openDialog }) => {
             `👥 ${agentsCount} agenti importati\n` +
             `👔 ${smCount} coordinatori\n` +
             `💰 ${formatCurrency(totalFatturato)} fatturato\n` +
-            `⚡ ${formatCurrency(totalInflow)} inflow`,
+            `⚡ ${formatCurrency(totalRush)} Fatturato Rush`,
             { id: 'upload', duration: 5000 }
           );
 
@@ -579,7 +579,7 @@ const FileUpload = ({ openDialog }) => {
                       <span>{formatNumber(file.metadata.totalAgents)} agenti</span>
                       <span>{formatNumber(file.metadata.totalSMs)} coordinatori</span>
                       <span>{formatCurrency(file.metadata.totalRevenue)} fatturato</span>
-                      <span>{formatCurrency(file.metadata.totalInflow)} inflow</span>
+                      <span>{formatCurrency(file.metadata.totalRush)} Fatturato Rush</span>
                       {file.metadata.totalFastweb > 0 && (
                         <span className="fastweb-badge">⚡ {formatNumber(file.metadata.totalFastweb)} Fastweb</span>
                       )}
@@ -625,7 +625,7 @@ const Dashboard = () => {
 
   const { stats, currentFile } = React.useMemo(() => {
     if (data.uploadedFiles.length === 0) {
-      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
+      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
     }
     
     const targetFile = selectedFileDate
@@ -636,7 +636,7 @@ const Dashboard = () => {
     const fileToUse = targetFile || data.uploadedFiles[0];
 
     if (!fileToUse || !fileToUse.metadata) {
-      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalInflow: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
+      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
     }
     
     return {
@@ -710,12 +710,12 @@ const Dashboard = () => {
           </div>
           
           <div className="stat-card highlight" style={{ animationDelay: '500ms' }}>
-            <h3>Inflow Totale</h3>
-            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalInflow)}</div>
+            <h3>Fatturato Rush</h3>
+            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalRush)}</div>
           </div>
           
           <div className="stat-card" style={{ animationDelay: '600ms' }}>
-            <h3>Nuovi Clienti</h3>
+            <h3>Nuovo Cliente</h3>
             <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalNewClients)}</div>
           </div>
           
@@ -762,11 +762,11 @@ const Dashboard = () => {
             <div className="insight-card">
               <h4>Media per Agente</h4>
               <p>Fatturato medio: <strong>{formatCurrency(stats.totalRevenue / (stats.totalAgents || 1))}</strong></p>
-              <p>Inflow medio: <strong>{formatCurrency(stats.totalInflow / (stats.totalAgents || 1))}</strong></p>
+              <p>Fatturato Rush medio: <strong>{formatCurrency(stats.totalRush / (stats.totalAgents || 1))}</strong></p>
             </div>
             <div className="insight-card">
               <h4>Performance Generale</h4>
-              <p>Rapporto Inflow/Fatturato: <strong>{((stats.totalInflow / (stats.totalRevenue || 1)) * 100).toFixed(1)}%</strong></p>
+              <p>Rapporto Rush/Fatturato: <strong>{((stats.totalRush / (stats.totalRevenue || 1)) * 100).toFixed(1)}%</strong></p>
               <p>Nuovi clienti per agente: <strong>{(stats.totalNewClients / (stats.totalAgents || 1)).toFixed(2)}</strong></p>
             </div>
           </div>
