@@ -12,6 +12,7 @@ import ModernAgentsPage from './components/ModernAgentsPage'; // Importa la nuov
 import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova pagina classifica SM
 import ModernProductsAnalysis from './components/ModernProductsAnalysis'; // Importa la nuova pagina prodotti
 import TestPage from './components/TestPage'; // Importa il componente TestPage
+import ModernDashboard from './components/ModernDashboard'; // Importa la nuova dashboard
 import './App.css';
 import './components/ModernDashboard.css'; // 💅 Importa i nuovi stili per la Dashboard
 import './components/ModernLogin.css'; // ✨ Importa i nuovi stili per il Login
@@ -615,159 +616,6 @@ const FileUpload = ({ openDialog }) => {
   );
 };
 
-// 💅 Componente Dashboard con UI Moderna
-const Dashboard = () => {
-  const { data, selectedFileDate, setSelectedFileDate, globalLoading } = useData();
-
-  // Effetto per gestire la selezione del periodo
-  useEffect(() => {
-    if (!selectedFileDate && data.uploadedFiles.length > 0) {
-      setSelectedFileDate(data.uploadedFiles[0].date);
-    }
-    if (selectedFileDate && !data.uploadedFiles.find(f => f.date === selectedFileDate)) {
-      setSelectedFileDate(data.uploadedFiles[0]?.date || null);
-    }
-  }, [data.uploadedFiles, selectedFileDate, setSelectedFileDate]);
-
-  const { stats, currentFile } = useMemo(() => {
-    const emptyStats = { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 };
-    if (data.uploadedFiles.length === 0) {
-      return { stats: emptyStats, currentFile: null };
-    }
-    
-    const fileToUse = selectedFileDate
-      ? data.uploadedFiles.find(f => f.date === selectedFileDate)
-      : data.uploadedFiles[0];
-
-    if (!fileToUse || !fileToUse.metadata) {
-      return { stats: emptyStats, currentFile: fileToUse };
-    }
-    
-    return { stats: fileToUse.metadata, currentFile: fileToUse };
-  }, [data.uploadedFiles, selectedFileDate]);
-  
-  const handlePeriodChange = (e) => {
-    setSelectedFileDate(e.target.value);
-  };
-
-  const statCards = [
-    {
-      label: "Fatturato Rush",
-      value: formatCurrency(stats.totalRush),
-      icon: TrendingUp,
-      color: "accent",
-      delay: "200ms"
-    },
-    {
-      label: "Fatturato Totale",
-      value: formatCurrency(stats.totalRevenue),
-      icon: DollarSign,
-      color: "primary",
-      delay: "300ms"
-    },
-    {
-      label: "Totale Agenti",
-      value: formatNumber(stats.totalAgents),
-      icon: Users,
-      color: "success",
-      delay: "400ms"
-    },
-    {
-      label: "Coordinatori (SM)",
-      value: formatNumber(stats.totalSMs),
-      icon: Briefcase,
-      color: "info",
-      delay: "500ms"
-    },
-    {
-      label: "Nuovi Clienti",
-      value: formatNumber(stats.totalNewClients),
-      icon: ClipboardList,
-      color: "danger",
-      delay: "600ms"
-    },
-    {
-      label: "Contratti Fastweb",
-      value: stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--',
-      icon: Zap,
-      color: "special",
-      delay: "700ms"
-    }
-  ];
-
-  if (globalLoading && data.uploadedFiles.length === 0) {
-    return (
-      <div className="modern-dashboard">
-        <div className="loading-indicator">
-          <div className="loading-spinner"></div>
-          <p>Caricamento dati dal database...</p>
-          <small>Prima volta? Vai in "📁 Gestione File" per caricare il primo file Excel.</small>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="modern-dashboard">
-      <div className="ranking-header">
-        <div className="header-content">
-          <div className="title-section">
-            <h1>
-              <LayoutDashboard size={32} />
-              Dashboard Generale
-            </h1>
-            <p className="page-subtitle">
-              Panoramica delle performance di vendita per il periodo selezionato
-            </p>
-          </div>
-
-          {data.uploadedFiles.length > 0 && currentFile && (
-            <div className="period-selector-container">
-              <label htmlFor="period-select" className="period-label">
-                <Calendar size={16} />
-                Periodo di riferimento
-              </label>
-              <select
-                id="period-select"
-                className="period-select"
-                value={currentFile.date}
-                onChange={handlePeriodChange}
-              >
-                {data.uploadedFiles.map(file => (
-                  <option key={file.id} value={file.date}>
-                    {file.displayDate}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {data.uploadedFiles.length > 0 ? (
-          <div className="global-stats">
-            {statCards.map(card => (
-              <div key={card.label} className={`stat-card ${card.color}`} style={{ animationDelay: card.delay }}>
-                <div className="stat-icon">
-                  <card.icon size={28} />
-                </div>
-                <div className="stat-content">
-                  <span className="stat-value">{card.value}</span>
-                  <span className="stat-label">{card.label}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="welcome-message">
-            <FileWarning size={48} className="opacity-30" />
-            <h3>👋 Benvenuto nella Dashboard RUSH!</h3>
-            <p>Per iniziare, carica il primo file Excel dalla sezione <strong>"📁 Gestione File"</strong>.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // Componente principale con routing - AGGIORNATO per usare DataProvider
 const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
@@ -793,7 +641,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
-        return <Dashboard />;
+        return <ModernDashboard />;
       case 'files':
         return <FileUpload openDialog={openDialog} />;
       case 'sm-ranking':
