@@ -107,6 +107,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
               <StatItem label="Cloud NAS" value={agent.cloudNas} />
               <StatItem label="MIIA" value={agent.miia} />
               <StatItem label="Easy GDPR" value={agent.easyGdpr} />
+              <StatItem label="Fastweb Energia" value={agent.fastwebEnergia} />
             </div>
           </div>
 

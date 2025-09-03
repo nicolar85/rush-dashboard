@@ -60,17 +60,10 @@ const AgentCard = ({ agent, onClick }) => {
             <span className="stat-label">Fatturato Rush</span>
             <span className="stat-value">{formatCurrency(agent.fatturatoRush || 0)}</span>
           </div>
-        </div>
-
-        <div className="secondary-stats">
-            <div className="stat-small">
-                <span className="stat-label-small">Nuovo Cliente</span>
-                <span className="stat-value-small">{formatNumber(agent.nuovoCliente) || '0'}</span>
-            </div>
-            <div className="stat-small">
-                <span className="stat-label-small">Fastweb</span>
-                <span className="stat-value-small">{formatNumber(agent.fastwebEnergia) || '0'}</span>
-            </div>
+          <div className="stat highlight">
+            <span className="stat-label">Bonus</span>
+            <span className="stat-value">{formatCurrency(agent.bonusRisultati || 0)}</span>
+          </div>
         </div>
       </div>
 
