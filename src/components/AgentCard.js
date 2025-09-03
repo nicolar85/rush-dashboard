@@ -3,10 +3,10 @@ import './AgentCard.css';
 import { formatCurrency, formatNumber } from '../utils/excelParser';
 
 const AgentCard = ({ agent, onClick }) => {
-  // Funzione per ottenere un colore in base alla performance (esempio basato sull'inflow)
-  const getPerformanceColor = (inflow) => {
-    if (inflow > 1000) return 'performance-green';
-    if (inflow > 500) return 'performance-yellow';
+  // Funzione per ottenere un colore in base alla performance (esempio basato sul fatturato rush)
+  const getPerformanceColor = (fatturatoRush) => {
+    if (fatturatoRush > 1000) return 'performance-green';
+    if (fatturatoRush > 500) return 'performance-yellow';
     return 'performance-red';
   };
 
@@ -35,7 +35,7 @@ const AgentCard = ({ agent, onClick }) => {
   };
 
   const topProducts = getTopProducts(agent.prodotti);
-  const performanceClass = getPerformanceColor(agent.inflowTotale);
+  const performanceClass = getPerformanceColor(agent.fatturatoRush);
 
   return (
     <div className={`agent-card ${performanceClass}`} onClick={() => onClick(agent)}>
@@ -57,15 +57,15 @@ const AgentCard = ({ agent, onClick }) => {
             <span className="stat-value">{formatCurrency(agent.fatturato?.complessivo || 0)}</span>
           </div>
           <div className="stat highlight">
-            <span className="stat-label">Inflow</span>
-            <span className="stat-value">{formatCurrency(agent.inflowTotale || 0)}</span>
+            <span className="stat-label">Fatturato Rush</span>
+            <span className="stat-value">{formatCurrency(agent.fatturatoRush || 0)}</span>
           </div>
         </div>
 
         <div className="secondary-stats">
             <div className="stat-small">
-                <span className="stat-label-small">Nuovi Clienti</span>
-                <span className="stat-value-small">{formatNumber(agent.nuoviClienti) || '0'}</span>
+                <span className="stat-label-small">Nuovo Cliente</span>
+                <span className="stat-value-small">{formatNumber(agent.nuovoCliente) || '0'}</span>
             </div>
             <div className="stat-small">
                 <span className="stat-label-small">Fastweb</span>

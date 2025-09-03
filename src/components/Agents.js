@@ -15,7 +15,7 @@ const Agents = () => {
   const [filters, setFilters] = useState({
     searchTerm: '',
     selectedSm: '',
-    inflowRange: [0, 10000],
+    fatturatoRushRange: [0, 10000],
     activePreset: null,
   });
 
@@ -25,9 +25,9 @@ const Agents = () => {
     const newFilters = {
       searchTerm: params.get('search') || '',
       selectedSm: params.get('sm') || '',
-      inflowRange: [
-        Number(params.get('minInflow')) || 0,
-        Number(params.get('maxInflow')) || 10000,
+      fatturatoRushRange: [
+        Number(params.get('minFatturatoRush')) || 0,
+        Number(params.get('maxFatturatoRush')) || 10000,
       ],
       activePreset: params.get('preset') || null,
     };
@@ -38,20 +38,20 @@ const Agents = () => {
     const params = new URLSearchParams();
     if (filters.searchTerm) params.set('search', filters.searchTerm);
     if (filters.selectedSm) params.set('sm', filters.selectedSm);
-    if (filters.inflowRange[0] > 0) params.set('minInflow', filters.inflowRange[0]);
-    if (filters.inflowRange[1] < 10000) params.set('maxInflow', filters.inflowRange[1]);
+    if (filters.fatturatoRushRange[0] > 0) params.set('minFatturatoRush', filters.fatturatoRushRange[0]);
+    if (filters.fatturatoRushRange[1] < 10000) params.set('maxFatturatoRush', filters.fatturatoRushRange[1]);
     if (filters.activePreset) params.set('preset', filters.activePreset);
 
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
   }, [filters]);
 
-  const { agents, currentFile, smList, maxInflow } = useMemo(() => {
+  const { agents, currentFile, smList, maxFatturatoRush } = useMemo(() => {
     if (!selectedFileDate || data.uploadedFiles.length === 0) {
-      return { agents: [], currentFile: null, smList: [], maxInflow: 10000 };
+      return { agents: [], currentFile: null, smList: [], maxFatturatoRush: 10000 };
     }
     const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
     if (!file || !file.data || !file.data.agents) {
-      return { agents: [], currentFile: null, smList: [], maxInflow: 10000 };
+      return { agents: [], currentFile: null, smList: [], maxFatturatoRush: 10000 };
     }
 
     const agentsWithId = file.data.agents.map((agent, index) => ({
@@ -59,16 +59,16 @@ const Agents = () => {
     }));
 
     const uniqueSmList = [...new Set(agentsWithId.map(a => a.sm).filter(Boolean))].sort();
-    const maxInflowValue = Math.max(...agentsWithId.map(a => a.inflowTotale || 0), 10000);
+    const maxFatturatoRushValue = Math.max(...agentsWithId.map(a => a.fatturatoRush || 0), 10000);
 
     let filteredAgents = agentsWithId.filter(agent =>
       agent.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) &&
       (filters.selectedSm === '' || agent.sm === filters.selectedSm) &&
-      (agent.inflowTotale || 0) >= filters.inflowRange[0] &&
-      (agent.inflowTotale || 0) <= filters.inflowRange[1]
+      (agent.fatturatoRush || 0) >= filters.fatturatoRushRange[0] &&
+      (agent.fatturatoRush || 0) <= filters.fatturatoRushRange[1]
     );
 
-    return { agents: filteredAgents, currentFile: file, smList: uniqueSmList, maxInflow: maxInflowValue };
+    return { agents: filteredAgents, currentFile: file, smList: uniqueSmList, maxFatturatoRush: maxFatturatoRushValue };
   }, [data.uploadedFiles, selectedFileDate, filters]);
 
   const handleFilterChange = (name, value) => {
@@ -79,17 +79,17 @@ const Agents = () => {
     let newFilters = { ...filters, searchTerm: '', selectedSm: '', activePreset: preset };
     switch (preset) {
       case 'top':
-        newFilters.inflowRange = [Math.floor(maxInflow * 0.5), maxInflow];
+        newFilters.fatturatoRushRange = [Math.floor(maxFatturatoRush * 0.5), maxFatturatoRush];
         break;
       case 'underperforming':
-        newFilters.inflowRange = [0, Math.floor(maxInflow * 0.1)];
+        newFilters.fatturatoRushRange = [0, Math.floor(maxFatturatoRush * 0.1)];
         break;
       case 'new':
-        // Questo filtro potrebbe richiedere un campo "nuovo" nell'agent, per ora filtro per inflow basso
-        newFilters.inflowRange = [0, 100];
+        // Questo filtro potrebbe richiedere un campo "nuovo" nell'agent, per ora filtro per fatturatoRush basso
+        newFilters.fatturatoRushRange = [0, 100];
         break;
       default:
-        newFilters.inflowRange = [0, maxInflow];
+        newFilters.fatturatoRushRange = [0, maxFatturatoRush];
         newFilters.activePreset = null;
     }
     setFilters(newFilters);
@@ -114,9 +114,9 @@ const Agents = () => {
           </select>
         </div>
         <div className="filter-item range-filter">
-          <label>Range Inflow</label>
-          <Slider value={filters.inflowRange} onChange={(e, val) => handleFilterChange('inflowRange', val)}
-            valueLabelDisplay="auto" min={0} max={maxInflow} step={100}
+          <label>Range Fatturato Rush</label>
+          <Slider value={filters.fatturatoRushRange} onChange={(e, val) => handleFilterChange('fatturatoRushRange', val)}
+            valueLabelDisplay="auto" min={0} max={maxFatturatoRush} step={100}
             valueLabelFormat={value => formatCurrency(value)}
           />
         </div>

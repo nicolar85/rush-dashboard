@@ -21,17 +21,12 @@ const DYNAMIC_FIELD_PATTERNS = {
   
   // Metriche finanziarie (OBBLIGATORIE)
   'FATTURATO_RUSH': {
-    patterns: ['fatturato rush', 'fatturato', 'rush fatturato', 'fat rush', 'revenue'],
+    patterns: ['fatturato rush', 'rush fatturato', 'fat rush'], // Rimosso 'fatturato' generico
     required: true,
     description: 'Fatturato Rush dell\'agente'
   },
-  'INFLOW': {
-    patterns: ['inflow', 'in flow', 'entrate', 'ricavi'],
-    required: true,
-    description: 'Inflow dell\'agente'
-  },
   'FATTURATO_COMPLESSIVO': {
-    patterns: ['fatturato complessivo', 'fatturato totale', 'totale fatturato', 'fatturato agente'],
+    patterns: ['fatturato complessivo', 'fatturato totale', 'totale fatturato'], // Rimosso 'fatturato agente'
     required: true,
     description: 'Fatturato Complessivo dell\'agente'
   },
@@ -83,8 +78,8 @@ const DYNAMIC_FIELD_PATTERNS = {
   },
   
   // Nuovi clienti e station
-  'NUOVI_CLIENTI': {
-    patterns: ['nuovi clienti', 'nc', 'new customers', 'clienti nuovi'],
+  'NUOVO_CLIENTE': {
+    patterns: ['nuovo cliente', 'nuovi clienti', 'nc', 'new customers', 'clienti nuovi'],
     required: false,
     description: 'Nuovi Clienti acquisiti'
   },
@@ -137,11 +132,11 @@ function findHeaderRow(worksheet) {
   const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
   const headerKeywords = ['agente', 'nome', 'fatturato', 'rush', 'sm', 'coordinatore', 'inflow'];
   
-  let bestRow = 4; // Default basato sull'analisi precedente
+  let bestRow = -1;
   let bestScore = 0;
   
-  // Controlla le prime 10 righe per trovare gli header
-  for (let row = 0; row <= Math.min(10, range.e.r); row++) {
+  // Controlla le prime 15 righe per trovare gli header
+  for (let row = 0; row <= Math.min(15, range.e.r); row++) {
     let score = 0;
     let cellCount = 0;
     
@@ -161,15 +156,15 @@ function findHeaderRow(worksheet) {
         }
         
         // Bonus se la cella sembra un header tipico
-        if (cellText.length > 3 && cellText.length < 30) {
+        if (cellText.length > 2 && cellText.length < 35) {
           score += 1;
         }
       }
     }
     
-    // Normalizza il punteggio per il numero di celle
-    if (cellCount > 5) { // Deve avere almeno 5 colonne per essere un header valido
-      const normalizedScore = score + (cellCount * 0.5);
+    // Normalizza il punteggio e considera solo righe con almeno 5 header
+    if (cellCount > 5) {
+      const normalizedScore = score + cellCount;
       if (normalizedScore > bestScore) {
         bestScore = normalizedScore;
         bestRow = row;
@@ -177,7 +172,11 @@ function findHeaderRow(worksheet) {
     }
   }
   
-  console.log(`✅ Riga header selezionata: ${bestRow + 1} (score: ${bestScore})`);
+  if (bestRow === -1) {
+    throw new Error('Impossibile trovare una riga di header valida nel file.');
+  }
+
+  console.log(`✅ Riga header selezionata dinamicamente: ${bestRow + 1} (punteggio: ${bestScore})`);
   return bestRow;
 }
 
@@ -207,53 +206,63 @@ function createIntelligentMapping(worksheet, headerRow) {
   
   console.log(`📋 Trovati ${headers.length} header nel file`);
   
-  // Mappa ogni campo usando pattern matching intelligente
+  const mappedHeaders = new Set();
+
+  // Fase 1: Cerca corrispondenze esatte per la massima precisione
   for (const [fieldKey, fieldConfig] of Object.entries(DYNAMIC_FIELD_PATTERNS)) {
-    let found = false;
+    for (const header of headers) {
+      if (mappedHeaders.has(header.col)) continue; // Salta header già mappato
+
+      for (const pattern of fieldConfig.patterns) {
+        if (header.normalized === pattern.toLowerCase()) {
+          mapping[fieldKey] = header.col;
+          mappedHeaders.add(header.col);
+          console.log(`✅ [EXACT] ${fieldKey} → ${header.col} ("${header.name}")`);
+          break; // Trovato, passa al campo successivo
+        }
+      }
+      if (mapping[fieldKey]) break; // Trovato, passa al campo successivo
+    }
+  }
+
+  // Fase 2: Cerca corrispondenze parziali per i campi non ancora mappati
+  for (const [fieldKey, fieldConfig] of Object.entries(DYNAMIC_FIELD_PATTERNS)) {
+    if (mapping[fieldKey]) continue; // Salta i campi già mappati
+
     let bestMatch = null;
     let bestScore = 0;
-    
-    // Cerca match perfetti o parziali
+
     for (const header of headers) {
+      if (mappedHeaders.has(header.col)) continue;
+
       for (const pattern of fieldConfig.patterns) {
         let score = 0;
-        
-        // Match perfetto
-        if (header.normalized === pattern.toLowerCase()) {
-          score = 100;
+        const normalizedPattern = pattern.toLowerCase();
+
+        // Evita che "fatturato" matchi "fatturato complessivo"
+        if (fieldKey === 'FATTURATO_RUSH' && header.normalized.includes('complessivo')) {
+            continue;
         }
-        // Match parziale - contiene il pattern
-        else if (header.normalized.includes(pattern.toLowerCase())) {
-          score = 80;
+
+        if (header.normalized.includes(normalizedPattern)) {
+          // Privilegia i match più lunghi e specifici
+          score = 80 + normalizedPattern.length;
+        } else if (normalizedPattern.includes(header.normalized)) {
+          score = 60 + header.normalized.length;
         }
-        // Match inverso - il pattern contiene l'header
-        else if (pattern.toLowerCase().includes(header.normalized)) {
-          score = 60;
-        }
-        // Match fuzzy - parole in comune
-        else {
-          const headerWords = header.normalized.split(/\s+/);
-          const patternWords = pattern.toLowerCase().split(/\s+/);
-          const commonWords = headerWords.filter(w => patternWords.includes(w));
-          if (commonWords.length > 0) {
-            score = (commonWords.length / Math.max(headerWords.length, patternWords.length)) * 40;
-          }
-        }
-        
-        if (score > bestScore && score >= 60) {
+
+        if (score > bestScore) {
           bestScore = score;
           bestMatch = header;
         }
       }
     }
-    
+
     if (bestMatch) {
       mapping[fieldKey] = bestMatch.col;
-      console.log(`✅ ${fieldKey} → ${bestMatch.col} ("${bestMatch.name}") [score: ${bestScore}]`);
-      found = true;
-    }
-    
-    if (!found) {
+      mappedHeaders.add(bestMatch.col);
+      console.log(`✅ [PARTIAL] ${fieldKey} → ${bestMatch.col} ("${bestMatch.name}") [score: ${bestScore}]`);
+    } else {
       if (fieldConfig.required) {
         missingColumns.push({
           field: fieldKey,
@@ -269,7 +278,7 @@ function createIntelligentMapping(worksheet, headerRow) {
           required: false,
           description: fieldConfig.description
         });
-        console.log(`⚠️  Opzionale mancante: ${fieldKey} (sarà 0)`);
+        console.log(`⚠️ Opzionale mancante: ${fieldKey} (sarà 0)`);
       }
     }
   }
@@ -304,13 +313,11 @@ function parseAgentRow(worksheet, row, mapping) {
   
   // 🔧 FIX: Metriche finanziarie con calcolo corretto
   agent.fatturatoRush = getColumnValue('FATTURATO_RUSH', 'number');
-  agent.inflow = getColumnValue('INFLOW', 'number'); // Mantenuto per retrocompatibilità o altri usi
   
   // ⭐️ NUOVA STRUTTURA DATI PER IL FRONTEND (basata sui requisiti)
   agent.fatturato = {
     complessivo: getColumnValue('FATTURATO_COMPLESSIVO', 'number')
   };
-  agent.inflowTotale = agent.fatturatoRush; // L'inflow dell'agente corrisponde al suo FATTURATO RUSH
 
   // Prodotti voce
   agent.casa = getColumnValue('CASA', 'number');
@@ -327,7 +334,7 @@ function parseAgentRow(worksheet, row, mapping) {
   agent.gas = getColumnValue('GAS', 'number');
   
   // Altri
-  agent.nuoviClienti = getColumnValue('NUOVI_CLIENTI', 'number');
+  agent.nuovoCliente = getColumnValue('NUOVO_CLIENTE', 'number');
   agent.station = getColumnValue('STATION', 'number');
   
   // Fastweb
@@ -529,8 +536,8 @@ export async function parseExcelFile(file, userMapping = null) {
             nome: agent.sm,
             agenti: [],
             fatturatoTotale: 0,
-            inflowTotale: 0,
-            nuoviClienti: 0,
+            fatturatoRush: 0,
+            nuovoCliente: 0,
             totaleFastweb: 0
           });
         }
@@ -538,8 +545,8 @@ export async function parseExcelFile(file, userMapping = null) {
         const smData = smStats.get(agent.sm);
         smData.agenti.push(agent);
         smData.fatturatoTotale += agent.fatturato.complessivo;
-        smData.inflowTotale += agent.inflowTotale;
-        smData.nuoviClienti += agent.nuoviClienti;
+        smData.fatturatoRush += agent.fatturatoRush;
+        smData.nuovoCliente += agent.nuovoCliente;
         smData.totaleFastweb += agent.totaleFastweb;
         
       } catch (error) {
@@ -553,21 +560,21 @@ export async function parseExcelFile(file, userMapping = null) {
     // 🔧 FIX: Calcola i totali CORRETTI
     const totals = agents.reduce((acc, agent) => {
       acc.totalRevenue += agent.fatturato.complessivo;
-      acc.totalInflow += agent.inflowTotale;
-      acc.totalNewClients += agent.nuoviClienti;
+      acc.totalRush += agent.fatturatoRush;
+      acc.totalNewClients += agent.nuovoCliente;
       acc.totalFastweb += agent.totaleFastweb;
       return acc;
     }, {
       totalRevenue: 0,
-      totalInflow: 0,
+      totalRush: 0,
       totalNewClients: 0,
       totalFastweb: 0
     });
     
     console.log('💰 Totali calcolati:', {
       fatturato: formatCurrency(totals.totalRevenue),
-      inflow: formatCurrency(totals.totalInflow),
-      nuoviClienti: totals.totalNewClients,
+      fatturatoRush: formatCurrency(totals.totalRush),
+      nuovoCliente: totals.totalNewClients,
       fastweb: totals.totalFastweb
     });
     
@@ -588,7 +595,7 @@ export async function parseExcelFile(file, userMapping = null) {
           totalAgents: agents.length,
           totalSMs: smStats.size,
           totalRevenue: totals.totalRevenue,
-          totalInflow: totals.totalInflow,
+          totalRush: totals.totalRush,
           totalNewClients: totals.totalNewClients,
           totalFastweb: totals.totalFastweb,
           dateInfo,
