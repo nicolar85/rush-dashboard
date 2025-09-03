@@ -8,7 +8,7 @@ import { apiService } from './services/apiService';
 // Import del parser Excel aggiornato
 import { parseExcelFile, formatCurrency, formatNumber, sortFilesByDate } from './utils/excelParser';
 import ConfirmationDialog from './components/ConfirmationDialog';
-import Agents from './components/Agents'; // Importa il nuovo componente
+import ModernAgentsPage from './components/ModernAgentsPage'; // Importa la nuova pagina agenti
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import './App.css';
 
@@ -806,7 +806,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'sm-ranking':
         return <div className="section-placeholder">🏅 Classifica SM - Disponibile dopo caricamento componenti avanzati</div>;
       case 'agents':
-        return <Agents />;
+        return <ModernAgentsPage />;
       case 'products':
         return <div className="section-placeholder">📦 Analisi Prodotti - Disponibile dopo caricamento componenti avanzati</div>;
       case 'new-clients':
