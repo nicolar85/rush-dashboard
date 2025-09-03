@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 const ModernTopbar = ({ activeSection, isMobile, isCollapsed, setIsCollapsed, currentUser, isDarkMode }) => {
-  const { data } = useData();
+  const { data, selectedFileDate, setSelectedFileDate } = useData();
   const sectionTitles = {
     dashboard: 'Dashboard',
     'sm-ranking': 'Classifica Sales Manager',
@@ -32,10 +32,21 @@ const ModernTopbar = ({ activeSection, isMobile, isCollapsed, setIsCollapsed, cu
       </div>
       <div className="topbar-right">
         <div className="quick-stats">
-          <div className="stat-item">
-            <Activity size={16} />
-            <span>{data.uploadedFiles?.length || 0} Files</span>
-          </div>
+          {data.uploadedFiles && data.uploadedFiles.length > 0 && (
+            <div className="period-selector">
+              <select
+                id="period-select-topbar"
+                value={selectedFileDate || (data.uploadedFiles[0]?.date || '')}
+                onChange={(e) => setSelectedFileDate(e.target.value)}
+              >
+                {data.uploadedFiles.map(file => (
+                  <option key={file.id} value={file.date}>
+                    {file.displayDate}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="stat-item">
             <Calendar size={16} />
             <span>{new Date().toLocaleDateString('it-IT')}</span>

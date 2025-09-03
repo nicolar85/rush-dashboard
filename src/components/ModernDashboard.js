@@ -18,7 +18,7 @@ const formatNumber = (value) => {
 };
 
 const ModernDashboard = () => {
-  const { data, selectedFileDate } = useData();
+  const { data, selectedFileDate, setSelectedFileDate } = useData();
 
   const stats = useMemo(() => {
     if (!data.uploadedFiles || data.uploadedFiles.length === 0) {
@@ -72,10 +72,6 @@ const ModernDashboard = () => {
               Dashboard RUSH
             </h1>
             <p className="hero-subtitle">Panoramica performance commerciali</p>
-            <div className="period-info">
-              <Calendar size={16} />
-              <span>Periodo: <strong>{stats.currentPeriod || 'Nessun dato'}</strong></span>
-            </div>
           </div>
         </div>
 
@@ -193,18 +189,11 @@ const ModernDashboard = () => {
         .hero-subtitle {
           font-size: 1.1rem;
           color: #64748b;
-          margin: 0 0 16px 0;
         }
-        .period-info {
+        .hero-content {
           display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #475569;
-          font-size: 1rem;
-          padding: 8px 16px;
-          background: rgba(59, 130, 246, 0.1);
-          border-radius: 12px;
-          display: inline-flex;
+          justify-content: space-between;
+          align-items: flex-start;
         }
         .performance-overview {
           display: grid;

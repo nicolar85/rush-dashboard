@@ -601,3 +601,48 @@
 .dashboard-card {
   animation: fadeIn 0.6s ease forwards;
 }
+
+/* Period Selector in Topbar */
+.modern-topbar .period-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modern-topbar .period-selector select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-color: rgba(0, 0, 0, 0.05);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 32px;
+}
+
+.modern-topbar.dark .period-selector select {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.modern-topbar .period-selector select:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.modern-topbar.dark .period-selector select:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.modern-topbar .period-selector select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+}
