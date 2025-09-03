@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { useData } from '../App';
 import {
-  BarChart3, Users, TrendingUp, DollarSign, Award,
-  Target, Calendar, FileText, Activity, Star,
+  BarChart3, Users, TrendingUp, DollarSign,
+  Target, Calendar, FileText, Activity,
   ArrowUpRight, ArrowDownRight, RefreshCw, Upload,
-  Crown, Medal, Zap, Package, MapPin, Clock
+  Crown, Medal, Zap, Clock
 } from 'lucide-react';
 
 // Simulazione delle funzioni di utilità
@@ -531,7 +531,7 @@ const ModernDashboard = () => {
         .perf-card.revenue { --accent-gradient: linear-gradient(90deg, #10b981, #047857); }
         .perf-card.rush { --accent-gradient: linear-gradient(90deg, #f59e0b, #d97706); }
         .perf-card.clients { --accent-gradient: linear-gradient(90deg, #8b5cf6, #7c3aed); }
-        .perf-card.fastweb { --accent-gradient: linear-gradient(90deg, #0d9488, #0f766e); }
+        .perf-card.fastweb { --accent-gradient: linear-gradient(90deg, #f59e0b, #d97706); }
 
         .perf-icon {
           width: 64px;
