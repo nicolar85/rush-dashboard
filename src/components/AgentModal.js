@@ -4,20 +4,16 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import './AgentModal.css';
 import { formatCurrency, formatNumber } from '../utils/excelParser';
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="custom-tooltip">
-        <p className="label">{`Periodo: ${label}`}</p>
-        {payload.map(pld => (
-          <p key={pld.dataKey} style={{ color: pld.color }}>
-            {`${pld.name}: ${formatCurrency(pld.value)}`}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
+const StatItem = ({ label, value, isCurrency = false }) => {
+  const formattedValue = isCurrency ? formatCurrency(value || 0) : formatNumber(value || 0);
+  if (value === 0 || value === undefined) return null; // Non mostrare se il valore è zero o non definito
+
+  return (
+    <div className="stat-item-small">
+      <span className="stat-item-label">{label}</span>
+      <span className="stat-item-value">{formattedValue}</span>
+    </div>
+  );
 };
 
 const AgentModal = ({ agent, allData, onClose }) => {
@@ -29,13 +25,12 @@ const AgentModal = ({ agent, allData, onClose }) => {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
-  const { historicalData, productBreakdown } = useMemo(() => {
+  // Logica per dati storici (mantenuta per ora, sebbene il grafico sia stato rimosso)
+  const historicalData = useMemo(() => {
     if (!agent || !allData || !allData.uploadedFiles) {
-      return { historicalData: [], productBreakdown: [] };
+      return [];
     }
-
-    // 1. Calcola dati storici
-    const history = allData.uploadedFiles
+    return allData.uploadedFiles
       .map(file => {
         const agentData = file.data?.agents?.find(a => a.nome === agent.nome);
         return agentData ? {
@@ -45,20 +40,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
         } : null;
       })
       .filter(Boolean)
-      .reverse(); // Ordina dal più vecchio al più recente
-
-    // 2. Calcola breakdown prodotti per il periodo corrente
-    const products = agent.prodotti || {};
-    const breakdown = Object.entries(products)
-      .filter(([key]) => key !== 'totalePezzi')
-      .map(([name, values]) => ({
-        name: name.replace(/([A-Z])/g, ' $1').trim(),
-        pezzi: values.pezzi || 0,
-      }))
-      .filter(p => p.pezzi > 0)
-      .sort((a, b) => b.pezzi - a.pezzi);
-
-    return { historicalData: history, productBreakdown: breakdown };
+      .reverse();
   }, [agent, allData]);
 
   if (!agent) return null;
@@ -89,48 +71,65 @@ const AgentModal = ({ agent, allData, onClose }) => {
             <div className="modal-stats-grid">
               <div className="modal-stat"><h4>Fatturato Complessivo</h4><p>{formatCurrency(agent.fatturato?.complessivo || 0)}</p></div>
               <div className="modal-stat highlight"><h4>Fatturato Rush</h4><p>{formatCurrency(agent.fatturatoRush || 0)}</p></div>
+              <div className="modal-stat highlight"><h4>Bonus Risultati</h4><p>{formatCurrency(agent.bonusRisultati || 0)}</p></div>
               <div className="modal-stat"><h4>Nuovo Cliente</h4><p>{formatNumber(agent.nuovoCliente || 0)}</p></div>
-              <div className="modal-stat"><h4>Contratti Fastweb</h4><p>{formatNumber(agent.fastwebEnergia || 0)}</p></div>
             </div>
           </div>
 
-          {historicalData.length > 1 && (
-            <div className="modal-section">
-              <h3>Andamento Storico</h3>
-              <div className="chart-container">
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={historicalData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
-                    <YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Fatturato Rush', angle: -90, position: 'insideLeft' }} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Fatturato', angle: -90, position: 'insideRight' }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="fatturatoRush" name="Fatturato Rush" stroke="#8884d8" activeDot={{ r: 8 }} />
-                    <Line yAxisId="right" type="monotone" dataKey="revenue" name="Fatturato" stroke="#82ca9d" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="modal-section">
+            <h3>Dettaglio Fatturati</h3>
+            <div className="modal-stats-grid-small">
+              <StatItem label="Fatturato Voce" value={agent.fatturatoVoce} isCurrency />
+              <StatItem label="Fatturato Dati" value={agent.fatturatoDati} isCurrency />
+              <StatItem label="Fatturato Easy Rent" value={agent.fatturatoEasyRent} isCurrency />
+              <StatItem label="Fatturato OU" value={agent.fatturatoOu} isCurrency />
+              <StatItem label="Fatturato OA" value={agent.fatturatoOa} isCurrency />
+              <StatItem label="Fatturato Easy Deal" value={agent.fatturatoEasyDeal} isCurrency />
+              <StatItem label="Fatturato Altro" value={agent.fatturatoAltro} isCurrency />
+              <StatItem label="Fatturato Servizi Digitali" value={agent.fatturatoServiziDigitali} isCurrency />
+              <StatItem label="Fatturato Custom" value={agent.fatturatoCustom} isCurrency />
+              <StatItem label="Fatturato SDM" value={agent.fatturatoSdm} isCurrency />
+              <StatItem label="Fatturato SSC" value={agent.fatturatoSsc} isCurrency />
+              <StatItem label="Fatturato Your Backup" value={agent.fatturatoYourBackup} isCurrency />
+              <StatItem label="Fatturato Cloud NAS" value={agent.fatturatoCloudNas} isCurrency />
+              <StatItem label="Fatturato Easy GDPR" value={agent.fatturatoEasyGdpr} isCurrency />
+              <StatItem label="Fatturato MIIA" value={agent.fatturatoMiia} isCurrency />
+              <StatItem label="Fatturato Nuovo Cliente" value={agent.fatturatoNuovoCliente} isCurrency />
             </div>
-          )}
+          </div>
 
-          {productBreakdown.length > 0 && (
-            <div className="modal-section">
-              <h3>Breakdown Prodotti (Pezzi)</h3>
-              <div className="chart-container">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={productBreakdown} layout="vertical" margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={120}/>
-                    <Tooltip formatter={(value) => formatNumber(value)} />
-                    <Legend />
-                    <Bar dataKey="pezzi" name="Pezzi" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="modal-section">
+            <h3>Servizi Digitali</h3>
+            <div className="modal-stats-grid-small">
+              <StatItem label="SDM" value={agent.sdm} />
+              <StatItem label="SSC" value={agent.ssc} />
+              <StatItem label="Your Backup" value={agent.yourBackup} />
+              <StatItem label="Cloud NAS" value={agent.cloudNas} />
+              <StatItem label="MIIA" value={agent.miia} />
+              <StatItem label="Easy GDPR" value={agent.easyGdpr} />
             </div>
-          )}
+          </div>
+
+          <div className="modal-section">
+            <h3>Fonia Fissa</h3>
+            <div className="modal-stats-grid-small">
+              <StatItem label="ADSL" value={agent.adsl} />
+              <StatItem label="Link OU" value={agent.linkOu} />
+              <StatItem label="Link OA" value={agent.linkOa} />
+              <StatItem label="Link OA Start" value={agent.linkOaStart} />
+              <StatItem label="Interni OA" value={agent.interniOa} />
+            </div>
+          </div>
+
+          <div className="modal-section">
+            <h3>Fonia Mobile</h3>
+            <div className="modal-stats-grid-small">
+              <StatItem label="SIM Voce" value={agent.simVoce} />
+              <StatItem label="SIM Dati" value={agent.simDati} />
+              <StatItem label="MNP" value={agent.mnp} />
+              <StatItem label="Easy Rent" value={agent.easyRent} />
+            </div>
+          </div>
         </div>
 
         <div className="modal-footer">

@@ -35,23 +35,59 @@ const DYNAMIC_FIELD_PATTERNS = {
     required: true,
     description: 'Fatturato Complessivo dell\'agente'
   },
+  'BONUS_RISULTATI': {
+    patterns: ['importo totale'],
+    required: false,
+    description: 'Bonus economico per risultati'
+  },
   
   // Prodotti voce (opzionali ma importanti)
-  'CASA': {
-    patterns: ['casa', 'fisso casa', 'linea casa', 'casa voce'],
+  'SIM_VOCE': {
+    patterns: ['sim voce totali', 'sim voce'],
     required: false,
-    description: 'Contratti Casa/Fisso'
+    description: 'Contratti SIM Voce'
   },
-  'BUSINESS': {
-    patterns: ['business', 'aziende', 'aziendale', 'biz'],
+  'SIM_DATI': {
+    patterns: ['sim dati totali', 'sim dati'],
     required: false,
-    description: 'Contratti Business'
+    description: 'Contratti SIM Dati'
   },
-  'MOBILE': {
-    patterns: ['mobile', 'cellulare', 'sim', 'telefonia mobile'],
+  'MNP': {
+    patterns: ['sim mnp voce', 'mnp'],
     required: false,
-    description: 'Contratti Mobile'
+    description: 'Contratti MNP'
   },
+
+  // Nuovi campi prodotti e fatturati specifici
+  'EASY_RENT': { patterns: ['easy rent'], required: false, description: 'Contratti Easy Rent' },
+  'LINK_OU': { patterns: ['link ou'], required: false, description: 'Contratti Link OU' },
+  'LINK_OA': { patterns: ['link oa'], required: false, description: 'Contratti Link OA' },
+  'LINK_OA_START': { patterns: ['link oa start'], required: false, description: 'Contratti Link OA Start' },
+  'INTERNI_OA': { patterns: ['interni oa'], required: false, description: 'Contratti Interni OA' },
+  'FATTURATO_VOCE': { patterns: ['fatturato voce'], required: false, description: 'Fatturato Voce' },
+  'FATTURATO_DATI': { patterns: ['fatturato dati'], required: false, description: 'Fatturato Dati' },
+  'FATTURATO_EASY_RENT': { patterns: ['fatturato easy rent'], required: false, description: 'Fatturato Easy Rent' },
+  'FATTURATO_OU': { patterns: ['fatturato ou'], required: false, description: 'Fatturato OU' },
+  'FATTURATO_OA': { patterns: ['fatturato oa'], required: false, description: 'Fatturato OA' },
+  'FATTURATO_EASY_DEAL': { patterns: ['fatturato easy e complex deal'], required: false, description: 'Fatturato Easy & Complex Deal' },
+  'FATTURATO_ALTRO': { patterns: ['fatturato altro'], required: false, description: 'Fatturato Altro' },
+  'FATTURATO_SERVIZI_DIGITALI': { patterns: ['fatturato servizi digitali'], required: false, description: 'Fatturato Servizi Digitali' },
+  'FATTURATO_CUSTOM': { patterns: ['fatturato custom'], required: false, description: 'Fatturato Custom' },
+  'SDM': { patterns: ['sdm'], required: false, description: 'Contratti SDM' },
+  'FATTURATO_SDM': { patterns: ['fatturato sdm'], required: false, description: 'Fatturato SDM' },
+  'SSC': { patterns: ['ssc'], required: false, description: 'Contratti SSC' },
+  'FATTURATO_SSC': { patterns: ['fatturato ssc'], required: false, description: 'Fatturato SSC' },
+  'YOUR_BACKUP': { patterns: ['your backup'], required: false, description: 'Contratti Your Backup' },
+  'FATTURATO_YOUR_BACKUP': { patterns: ['inflow your backup'], required: false, description: 'Fatturato Your Backup' },
+  'CLOUD_NAS': { patterns: ['cloud nas'], required: false, description: 'Contratti Cloud NAS' },
+  'FATTURATO_CLOUD_NAS': { patterns: ['inflow cloud nas'], required: false, description: 'Fatturato Cloud NAS' },
+  'EASY_GDPR': { patterns: ['easy gdpr'], required: false, description: 'Contratti Easy GDPR' },
+  'FATTURATO_EASY_GDPR': { patterns: ['fatturato easy gdpr'], required: false, description: 'Fatturato Easy GDPR' },
+  'MIIA': { patterns: ['miia'], required: false, description: 'Contratti MIIA' },
+  'FATTURATO_MIIA': { patterns: ['inflow miia'], required: false, description: 'Fatturato MIIA' },
+  'FATTURATO_NUOVO_CLIENTE': { patterns: ['fatturato nuovo cliente'], required: false, description: 'Fatturato Nuovo Cliente' },
+  'BSALES_MOBILE': { patterns: ['bsales mobile'], required: false, description: 'Contratti Bsales Mobile' },
+  'PDA_DIGITALE': { patterns: ['pda digitale'], required: false, description: 'Contratti PDA Digitale' },
   
   // Prodotti dati
   'ADSL': {
@@ -71,16 +107,6 @@ const DYNAMIC_FIELD_PATTERNS = {
   },
   
   // Prodotti energia
-  'LUCE': {
-    patterns: ['luce', 'energia elettrica', 'elettricità', 'ee'],
-    required: false,
-    description: 'Contratti Luce'
-  },
-  'GAS': {
-    patterns: ['gas', 'gas naturale', 'metano'],
-    required: false,
-    description: 'Contratti Gas'
-  },
   
   // Nuovi clienti e station
   'NUOVO_CLIENTE': {
@@ -95,21 +121,6 @@ const DYNAMIC_FIELD_PATTERNS = {
   },
   
   // Fastweb
-  'FASTWEB_MOBILE': {
-    patterns: ['fastweb mobile', 'fw mobile', 'fastweb sim'],
-    required: false,
-    description: 'Contratti Fastweb Mobile'
-  },
-  'FASTWEB_CASA': {
-    patterns: ['fastweb casa', 'fw casa', 'fastweb fisso'],
-    required: false,
-    description: 'Contratti Fastweb Casa'
-  },
-  'FASTWEB_BUSINESS': {
-    patterns: ['fastweb business', 'fw business', 'fastweb aziendale'],
-    required: false,
-    description: 'Contratti Fastweb Business'
-  },
   'FASTWEB_ENERGIA': {
     patterns: ['fastweb energia', 'fw energia', 'fastweb luce gas'],
     required: false,
@@ -319,6 +330,7 @@ function parseAgentRow(worksheet, row, mapping) {
   
   // 🔧 FIX: Metriche finanziarie con calcolo corretto
   agent.fatturatoRush = getColumnValue('FATTURATO_RUSH', 'number');
+  agent.bonusRisultati = getColumnValue('BONUS_RISULTATI', 'number');
   
   // ⭐️ NUOVA STRUTTURA DATI PER IL FRONTEND (basata sui requisiti)
   agent.fatturato = {
@@ -326,38 +338,80 @@ function parseAgentRow(worksheet, row, mapping) {
   };
 
   // Prodotti voce
-  agent.casa = getColumnValue('CASA', 'number');
-  agent.business = getColumnValue('BUSINESS', 'number');
-  agent.mobile = getColumnValue('MOBILE', 'number');
+  agent.simVoce = getColumnValue('SIM_VOCE', 'number');
   
   // Prodotti dati
   agent.adsl = getColumnValue('ADSL', 'number');
+  agent.simDati = getColumnValue('SIM_DATI', 'number');
   agent.fibra = getColumnValue('FIBRA', 'number');
   agent.fibraBusiness = getColumnValue('FIBRA_BUSINESS', 'number');
   
   // Prodotti energia
-  agent.luce = getColumnValue('LUCE', 'number');
-  agent.gas = getColumnValue('GAS', 'number');
+  agent.fastwebEnergia = getColumnValue('FASTWEB_ENERGIA', 'number');
   
   // Altri
   agent.nuovoCliente = getColumnValue('NUOVO_CLIENTE', 'number');
   agent.station = getColumnValue('STATION', 'number');
-  
-  // Fastweb
-  agent.fastwebMobile = getColumnValue('FASTWEB_MOBILE', 'number');
-  agent.fastwebCasa = getColumnValue('FASTWEB_CASA', 'number');
-  agent.fastwebBusiness = getColumnValue('FASTWEB_BUSINESS', 'number');
-  agent.fastwebEnergia = getColumnValue('FASTWEB_ENERGIA', 'number');
+  agent.mnp = getColumnValue('MNP', 'number');
   
   // Altri campi opzionali
   agent.totalePezzi = getColumnValue('TOTALE_PEZZI', 'number');
   agent.numero = getColumnValue('NUMERO', 'string');
+
+  // Nuovi campi aggiunti
+  agent.easyRent = getColumnValue('EASY_RENT', 'number');
+  agent.linkOu = getColumnValue('LINK_OU', 'number');
+  agent.linkOa = getColumnValue('LINK_OA', 'number');
+  agent.linkOaStart = getColumnValue('LINK_OA_START', 'number');
+  agent.interniOa = getColumnValue('INTERNI_OA', 'number');
+  agent.fatturatoVoce = getColumnValue('FATTURATO_VOCE', 'number');
+  agent.fatturatoDati = getColumnValue('FATTURATO_DATI', 'number');
+  agent.fatturatoEasyRent = getColumnValue('FATTURATO_EASY_RENT', 'number');
+  agent.fatturatoOu = getColumnValue('FATTURATO_OU', 'number');
+  agent.fatturatoOa = getColumnValue('FATTURATO_OA', 'number');
+  agent.fatturatoEasyDeal = getColumnValue('FATTURATO_EASY_DEAL', 'number');
+  agent.fatturatoAltro = getColumnValue('FATTURATO_ALTRO', 'number');
+  agent.fatturatoServiziDigitali = getColumnValue('FATTURATO_SERVIZI_DIGITALI', 'number');
+  agent.fatturatoCustom = getColumnValue('FATTURATO_CUSTOM', 'number');
+  agent.sdm = getColumnValue('SDM', 'number');
+  agent.fatturatoSdm = getColumnValue('FATTURATO_SDM', 'number');
+  agent.ssc = getColumnValue('SSC', 'number');
+  agent.fatturatoSsc = getColumnValue('FATTURATO_SSC', 'number');
+  agent.yourBackup = getColumnValue('YOUR_BACKUP', 'number');
+  agent.fatturatoYourBackup = getColumnValue('FATTURATO_YOUR_BACKUP', 'number');
+  agent.cloudNas = getColumnValue('CLOUD_NAS', 'number');
+  agent.fatturatoCloudNas = getColumnValue('FATTURATO_CLOUD_NAS', 'number');
+  agent.easyGdpr = getColumnValue('EASY_GDPR', 'number');
+  agent.fatturatoEasyGdpr = getColumnValue('FATTURATO_EASY_GDPR', 'number');
+  agent.miia = getColumnValue('MIIA', 'number');
+  agent.fatturatoMiia = getColumnValue('FATTURATO_MIIA', 'number');
+  agent.fatturatoNuovoCliente = getColumnValue('FATTURATO_NUOVO_CLIENTE', 'number');
+  agent.bsalesMobile = getColumnValue('BSALES_MOBILE', 'number');
+  agent.pdaDigitale = getColumnValue('PDA_DIGITALE', 'number');
   
   // 🔧 FIX: Calcoli derivati corretti
-  agent.totaleFastweb = agent.fastwebMobile + agent.fastwebCasa + agent.fastwebBusiness + agent.fastwebEnergia;
-  agent.totaleVoce = agent.casa + agent.business + agent.mobile;
-  agent.totaleDati = agent.adsl + agent.fibra + agent.fibraBusiness;
-  agent.totaleEnergia = agent.luce + agent.gas;
+  agent.totaleVoce = agent.simVoce; // Aggiornato dopo rimozione di casa e business
+  agent.totaleDati = agent.adsl + agent.fibra + agent.fibraBusiness + agent.simDati;
+  agent.totaleFastweb = agent.fastwebEnergia; // Aggiornato dopo rimozione di altri campi fastweb
+
+  // Calcolo aggregato di tutti i nuovi fatturati per prodotto/servizio
+  agent.fatturatoProdotti =
+    agent.fatturatoVoce +
+    agent.fatturatoDati +
+    agent.fatturatoEasyRent +
+    agent.fatturatoOu +
+    agent.fatturatoOa +
+    agent.fatturatoEasyDeal +
+    agent.fatturatoAltro +
+    agent.fatturatoServiziDigitali +
+    agent.fatturatoCustom +
+    agent.fatturatoSdm +
+    agent.fatturatoSsc +
+    agent.fatturatoYourBackup +
+    agent.fatturatoCloudNas +
+    agent.fatturatoEasyGdpr +
+    agent.fatturatoMiia +
+    agent.fatturatoNuovoCliente;
   
   return agent;
 }
