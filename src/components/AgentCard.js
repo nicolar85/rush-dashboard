@@ -1,83 +1,101 @@
 import React from 'react';
+import { formatCurrency } from '../utils/excelParser';
+import { DollarSign, TrendingUp, Award, User, Package } from 'lucide-react';
 import './AgentCard.css';
-import { formatCurrency, formatNumber } from '../utils/excelParser';
 
 const AgentCard = ({ agent, onClick }) => {
-  // Funzione per ottenere un colore in base alla performance (esempio basato sul fatturato rush)
-  const getPerformanceColor = (fatturatoRush) => {
-    if (fatturatoRush > 1000) return 'performance-green';
-    if (fatturatoRush > 500) return 'performance-yellow';
-    return 'performance-red';
+  // Determina la classe di performance basata sul fatturato rush
+  const getPerformanceClass = (fatturatoRush) => {
+    if (fatturatoRush > 1000) return 'performance-high';
+    if (fatturatoRush > 500) return 'performance-medium';
+    return 'performance-low';
   };
 
-  // Funzione per ottenere le iniziali dell'agente
+  // Ottiene le iniziali dell'agente
   const getInitials = (name) => {
     if (!name) return '?';
     const names = name.split(' ');
-    if (names.length > 1) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
+    return names.length > 1
+      ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+      : name.substring(0, 2).toUpperCase();
   };
 
   // Trova i 2-3 prodotti con il maggior numero di pezzi
-  const getTopProducts = (prodotti) => {
-    if (!prodotti) return [];
-
-    return Object.entries(prodotti)
-      .filter(([key, value]) => key !== 'totalePezzi' && value.pezzi > 0)
-      .sort(([, a], [, b]) => b.pezzi - a.pezzi)
+  const getTopProducts = (agentData) => {
+    const productFields = ['simVoce', 'simDati', 'mnp', 'easyRent', 'adsl', 'linkOu', 'linkOa', 'sdm', 'ssc', 'yourBackup', 'cloudNas', 'miia', 'easyGdpr'];
+    return productFields
+      .map(key => ({ name: key, value: agentData[key] || 0 }))
+      .filter(p => p.value > 0)
+      .sort((a, b) => b.value - a.value)
       .slice(0, 3)
-      .map(([key, value]) => ({
-        name: key.replace(/([A-Z])/g, ' $1').trim(), // Aggiunge spazio prima delle maiuscole
-        value: value.pezzi
+      .map(p => ({
+        name: p.name.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()),
+        value: p.value
       }));
   };
 
-  const topProducts = getTopProducts(agent.prodotti);
-  const performanceClass = getPerformanceColor(agent.fatturatoRush);
+  const topProducts = getTopProducts(agent);
+  const performanceClass = getPerformanceClass(agent.fatturatoRush);
+
+  const Stat = ({ icon, label, value }) => (
+    <div className="stat-item-modern">
+      <div className="stat-icon-modern">{icon}</div>
+      <div className="stat-content-modern">
+        <span className="label">{label}</span>
+        <span className="value">{value}</span>
+      </div>
+    </div>
+  );
 
   return (
-    <div className={`agent-card ${performanceClass}`} onClick={() => onClick(agent)}>
-      <div className="card-header">
-        <div className="agent-avatar">
-          <span>{getInitials(agent.nome)}</span>
+    <div className="agent-card-modern" onClick={() => onClick(agent)}>
+      {/* Header Moderno */}
+      <div className={`card-header-modern ${performanceClass}`}>
+        <div className="avatar-modern">
+          <User size={24} />
         </div>
-        <div className="agent-info">
-          <h3 className="agent-name">{agent.nome}</h3>
-          <p className="agent-sm">{agent.sm || 'N/A'}</p>
-        </div>
-        <div className={`status-indicator ${performanceClass}`}></div>
-      </div>
-
-      <div className="card-body">
-        <div className="main-stats">
-          <div className="stat">
-            <span className="stat-label">Fatturato</span>
-            <span className="stat-value">{formatCurrency(agent.fatturato?.complessivo || 0)}</span>
-          </div>
-          <div className="stat highlight">
-            <span className="stat-label">Fatturato Rush</span>
-            <span className="stat-value">{formatCurrency(agent.fatturatoRush || 0)}</span>
-          </div>
-          <div className="stat highlight">
-            <span className="stat-label">Bonus</span>
-            <span className="stat-value">{formatCurrency(agent.bonusRisultati || 0)}</span>
-          </div>
+        <div className="info-modern">
+          <h3 className="name-modern">{agent.nome}</h3>
+          <p className="sm-modern">{agent.sm || 'N/A'}</p>
         </div>
       </div>
 
-      <div className="card-footer">
-        <span className="footer-title">Top Prodotti:</span>
-        <div className="top-products">
+      {/* Corpo Moderno */}
+      <div className="card-body-modern">
+        <div className="stats-grid-modern">
+          <Stat
+            icon={<DollarSign size={20} />}
+            label="Fatturato"
+            value={formatCurrency(agent.fatturato?.complessivo || 0)}
+          />
+          <Stat
+            icon={<TrendingUp size={20} />}
+            label="Rush"
+            value={formatCurrency(agent.fatturatoRush || 0)}
+          />
+          <Stat
+            icon={<Award size={20} />}
+            label="Bonus"
+            value={formatCurrency(agent.bonusRisultati || 0)}
+          />
+        </div>
+      </div>
+
+      {/* Footer Moderno */}
+      <div className="card-footer-modern">
+        <h4 className="footer-title-modern">
+          <Package size={16} />
+          Top Prodotti
+        </h4>
+        <div className="products-container-modern">
           {topProducts.length > 0 ? (
             topProducts.map(p => (
-              <div key={p.name} className="product-badge">
+              <div key={p.name} className="product-badge-modern">
                 {p.name}: <strong>{p.value}</strong>
               </div>
             ))
           ) : (
-            <p className="no-products">Nessun prodotto</p>
+            <p className="no-products-modern">Nessun prodotto di punta</p>
           )}
         </div>
       </div>
