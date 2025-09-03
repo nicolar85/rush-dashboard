@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useEffect, useCallback } from 'react';
+import React, { useState, createContext, useContext, useEffect, useCallback, useMemo } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import toast, { Toaster } from 'react-hot-toast';
@@ -12,6 +12,12 @@ import ModernAgentsPage from './components/ModernAgentsPage'; // Importa la nuov
 import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova pagina classifica SM
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import './App.css';
+import './components/ModernDashboard.css'; // 💅 Importa i nuovi stili per la Dashboard
+import {
+  LayoutDashboard, Users, Briefcase, TrendingUp,
+  DollarSign, ClipboardList, Zap, Calendar, FileWarning
+} from 'lucide-react';
+
 
 // Context per la gestione dei dati - AGGIORNATO con caricamento globale
 const DataContext = createContext();
@@ -607,58 +613,89 @@ const FileUpload = ({ openDialog }) => {
   );
 };
 
-// Componente Dashboard principale - AGGIORNATO per gestire loading globale
+// 💅 Componente Dashboard con UI Moderna
 const Dashboard = () => {
   const { data, selectedFileDate, setSelectedFileDate, globalLoading } = useData();
-  const [loading, setLoading] = useState(false);
-  
+
   // Effetto per gestire la selezione del periodo
   useEffect(() => {
-    // Se non c'è una selezione e ci sono file, seleziona il più recente
     if (!selectedFileDate && data.uploadedFiles.length > 0) {
       setSelectedFileDate(data.uploadedFiles[0].date);
     }
-    // Se il file selezionato non è più nella lista (es. eliminato), resetta la selezione
     if (selectedFileDate && !data.uploadedFiles.find(f => f.date === selectedFileDate)) {
       setSelectedFileDate(data.uploadedFiles[0]?.date || null);
     }
   }, [data.uploadedFiles, selectedFileDate, setSelectedFileDate]);
 
-  const { stats, currentFile } = React.useMemo(() => {
+  const { stats, currentFile } = useMemo(() => {
+    const emptyStats = { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 };
     if (data.uploadedFiles.length === 0) {
-      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
+      return { stats: emptyStats, currentFile: null };
     }
     
-    const targetFile = selectedFileDate
+    const fileToUse = selectedFileDate
       ? data.uploadedFiles.find(f => f.date === selectedFileDate)
       : data.uploadedFiles[0];
 
-    // Se il file non si trova, usa il primo come fallback
-    const fileToUse = targetFile || data.uploadedFiles[0];
-
     if (!fileToUse || !fileToUse.metadata) {
-      return { stats: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 }, currentFile: null };
+      return { stats: emptyStats, currentFile: fileToUse };
     }
     
-    return {
-      stats: fileToUse.metadata,
-      currentFile: fileToUse
-    };
+    return { stats: fileToUse.metadata, currentFile: fileToUse };
   }, [data.uploadedFiles, selectedFileDate]);
   
   const handlePeriodChange = (e) => {
-    const newFileDate = e.target.value;
-    setLoading(true);
-    setTimeout(() => {
-      setSelectedFileDate(newFileDate);
-      setLoading(false);
-    }, 300);
+    setSelectedFileDate(e.target.value);
   };
 
-  // 🔧 FIX: Mostra loading globale durante il caricamento iniziale
+  const statCards = [
+    {
+      label: "Fatturato Rush",
+      value: formatCurrency(stats.totalRush),
+      icon: TrendingUp,
+      color: "accent",
+      delay: "200ms"
+    },
+    {
+      label: "Fatturato Totale",
+      value: formatCurrency(stats.totalRevenue),
+      icon: DollarSign,
+      color: "primary",
+      delay: "300ms"
+    },
+    {
+      label: "Totale Agenti",
+      value: formatNumber(stats.totalAgents),
+      icon: Users,
+      color: "success",
+      delay: "400ms"
+    },
+    {
+      label: "Coordinatori (SM)",
+      value: formatNumber(stats.totalSMs),
+      icon: Briefcase,
+      color: "info",
+      delay: "500ms"
+    },
+    {
+      label: "Nuovi Clienti",
+      value: formatNumber(stats.totalNewClients),
+      icon: ClipboardList,
+      color: "danger",
+      delay: "600ms"
+    },
+    {
+      label: "Contratti Fastweb",
+      value: stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--',
+      icon: Zap,
+      color: "special",
+      delay: "700ms"
+    }
+  ];
+
   if (globalLoading && data.uploadedFiles.length === 0) {
     return (
-      <div className="dashboard-content">
+      <div className="modern-dashboard">
         <div className="loading-indicator">
           <div className="loading-spinner"></div>
           <p>Caricamento dati dal database...</p>
@@ -669,110 +706,63 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="dashboard-content">
-      <div className="dashboard-header">
-        <h2>📊 Dashboard Generale</h2>
-        {data.uploadedFiles.length > 0 && currentFile ? (
-          <div className="period-selector">
-            <label htmlFor="period-select">Periodo di Riferimento:</label>
-            <select
-              id="period-select"
-              value={currentFile.date}
-              onChange={handlePeriodChange}
-            >
-              {data.uploadedFiles.map(file => (
-                <option key={file.id} value={file.date}>
-                  {file.displayDate}
-                </option>
-              ))}
-            </select>
+    <div className="modern-dashboard">
+      <div className="ranking-header">
+        <div className="header-content">
+          <div className="title-section">
+            <h1>
+              <LayoutDashboard size={32} />
+              Dashboard Generale
+            </h1>
+            <p className="page-subtitle">
+              Panoramica delle performance di vendita per il periodo selezionato
+            </p>
+          </div>
+
+          {data.uploadedFiles.length > 0 && currentFile && (
+            <div className="period-selector-container">
+              <label htmlFor="period-select" className="period-label">
+                <Calendar size={16} />
+                Periodo di riferimento
+              </label>
+              <select
+                id="period-select"
+                className="period-select"
+                value={currentFile.date}
+                onChange={handlePeriodChange}
+              >
+                {data.uploadedFiles.map(file => (
+                  <option key={file.id} value={file.date}>
+                    {file.displayDate}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {data.uploadedFiles.length > 0 ? (
+          <div className="global-stats">
+            {statCards.map(card => (
+              <div key={card.label} className={`stat-card ${card.color}`} style={{ animationDelay: card.delay }}>
+                <div className="stat-icon">
+                  <card.icon size={28} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-value">{card.value}</span>
+                  <span className="stat-label">{card.label}</span>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-           <p className="current-period">Nessun periodo disponibile - Carica il primo file Excel</p>
+          <div className="welcome-message">
+            <FileWarning size={48} className="opacity-30" />
+            <h3>👋 Benvenuto nella Dashboard RUSH!</h3>
+            <p>Per iniziare, carica il primo file Excel dalla sezione <strong>"📁 Gestione File"</strong>.</p>
+          </div>
         )}
       </div>
-      
-      {/* 🔧 FIX: Mostra stats solo se ci sono dati */}
-      {data.uploadedFiles.length > 0 ? (
-        <div className="stats-grid">
-          <div className="stat-card" style={{ animationDelay: '200ms' }}>
-            <h3>Totale Agenti</h3>
-            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalAgents)}</div>
-          </div>
-          
-          <div className="stat-card" style={{ animationDelay: '300ms' }}>
-            <h3>SM Attivi</h3>
-            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalSMs)}</div>
-          </div>
-          
-          <div className="stat-card highlight" style={{ animationDelay: '400ms' }}>
-            <h3>Fatturato Totale</h3>
-            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalRevenue)}</div>
-          </div>
-          
-          <div className="stat-card highlight" style={{ animationDelay: '500ms' }}>
-            <h3>Fatturato Rush</h3>
-            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatCurrency(stats.totalRush)}</div>
-          </div>
-          
-          <div className="stat-card" style={{ animationDelay: '600ms' }}>
-            <h3>Nuovo Cliente</h3>
-            <div className={`stat-number ${loading ? 'loading' : ''}`}>{formatNumber(stats.totalNewClients)}</div>
-          </div>
-          
-          <div className="stat-card" style={{ animationDelay: '700ms' }}>
-            <h3>Contratti Fastweb</h3>
-            <div className={`stat-number ${loading ? 'loading' : ''}`}>
-              {stats.totalFastweb > 0 ? formatNumber(stats.totalFastweb) : '--'}
-            </div>
-            {stats.totalFastweb === 0 && (
-              <div className="stat-note">Non disponibile nel periodo</div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="welcome-message">
-          <h3>👋 Benvenuto nella Dashboard RUSH!</h3>
-          <p>Per iniziare, carica il primo file Excel dalla sezione <strong>"📁 Gestione File"</strong>.</p>
-          <div className="welcome-steps">
-            <div className="step">
-              <span className="step-number">1</span>
-              <span>Vai in "📁 Gestione File"</span>
-            </div>
-            <div className="step">
-              <span className="step-number">2</span>
-              <span>Carica il file Excel mensile</span>
-            </div>
-            <div className="step">
-              <span className="step-number">3</span>
-              <span>Torna qui per vedere le statistiche!</span>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {currentFile && (
-        <div className="quick-insights">
-          <h3>📈 Insights Rapidi (Periodo: {currentFile.displayDate})</h3>
-          <div className="insights-grid">
-            <div className="insight-card">
-              <h4>File Selezionato</h4>
-              <p>Periodo: <strong>{currentFile.displayDate}</strong></p>
-              <p className="insight-detail">Dati relativi al periodo selezionato</p>
-            </div>
-            <div className="insight-card">
-              <h4>Media per Agente</h4>
-              <p>Fatturato medio: <strong>{formatCurrency(stats.totalRevenue / (stats.totalAgents || 1))}</strong></p>
-              <p>Fatturato Rush medio: <strong>{formatCurrency(stats.totalRush / (stats.totalAgents || 1))}</strong></p>
-            </div>
-            <div className="insight-card">
-              <h4>Performance Generale</h4>
-              <p>Rapporto Rush/Fatturato: <strong>{((stats.totalRush / (stats.totalRevenue || 1)) * 100).toFixed(1)}%</strong></p>
-              <p>Nuovi clienti per agente: <strong>{(stats.totalNewClients / (stats.totalAgents || 1)).toFixed(2)}</strong></p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

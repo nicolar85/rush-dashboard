@@ -11,15 +11,6 @@ const AgentCard = ({ agent, onClick }) => {
     return 'performance-low';
   };
 
-  // Ottiene le iniziali dell'agente
-  const getInitials = (name) => {
-    if (!name) return '?';
-    const names = name.split(' ');
-    return names.length > 1
-      ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-      : name.substring(0, 2).toUpperCase();
-  };
-
   // Trova i 2-3 prodotti con il maggior numero di pezzi
   const getTopProducts = (agentData) => {
     const productFields = ['simVoce', 'simDati', 'mnp', 'easyRent', 'adsl', 'linkOu', 'linkOa', 'sdm', 'ssc', 'yourBackup', 'cloudNas', 'miia', 'easyGdpr'];
