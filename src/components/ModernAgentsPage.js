@@ -5,6 +5,8 @@ import AgentModal from './AgentModal'; // Importa la VERA AgentModal
 import { Search, Filter, Users, TrendingUp, Award, BarChart3, RefreshCw } from 'lucide-react';
 import { Slider } from '@mui/material';
 
+const SLIDER_DISPLAY_MAX = 3000; // Limite visuale per lo slider
+
 const ModernAgentsPage = () => {
   const { data, selectedFileDate, loadFiles, globalLoading } = useData(); // Usa i dati reali
   const [selectedAgent, setSelectedAgent] = useState(null);
@@ -43,14 +45,14 @@ const ModernAgentsPage = () => {
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
   }, [filters]);
 
-  // Logica per processare i dati reali (dal vecchio componente Agents.js)
+  // Logica per processare i dati reali
   const { agents, smList, maxFatturatoRush, allAgentsInPeriod } = useMemo(() => {
     if (!selectedFileDate || !data.uploadedFiles || data.uploadedFiles.length === 0) {
-      return { agents: [], smList: [], maxFatturatoRush: 10000, allAgentsInPeriod: [] };
+      return { agents: [], smList: [], maxFatturatoRush: SLIDER_DISPLAY_MAX, allAgentsInPeriod: [] };
     }
     const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
     if (!file || !file.data || !file.data.agents) {
-      return { agents: [], smList: [], maxFatturatoRush: 10000, allAgentsInPeriod: [] };
+      return { agents: [], smList: [], maxFatturatoRush: SLIDER_DISPLAY_MAX, allAgentsInPeriod: [] };
     }
 
     const agentsWithId = file.data.agents.map((agent, index) => ({
@@ -58,7 +60,7 @@ const ModernAgentsPage = () => {
     }));
 
     const uniqueSmList = [...new Set(agentsWithId.map(a => a.sm).filter(Boolean))].sort();
-    const maxRush = Math.max(...agentsWithId.map(a => a.fatturatoRush || 0), 10000);
+    const trueMaxRush = Math.max(...agentsWithId.map(a => a.fatturatoRush || 0));
 
     let filteredAgents = agentsWithId.filter(agent =>
       agent.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) &&
@@ -67,11 +69,18 @@ const ModernAgentsPage = () => {
       (agent.fatturatoRush || 0) <= filters.fatturatoRushRange[1]
     );
 
-    return { agents: filteredAgents, smList: uniqueSmList, maxFatturatoRush: maxRush, allAgentsInPeriod: agentsWithId };
+    return { agents: filteredAgents, smList: uniqueSmList, maxFatturatoRush: trueMaxRush, allAgentsInPeriod: agentsWithId };
   }, [data.uploadedFiles, selectedFileDate, filters]);
 
   const handleFilterChange = (name, value) => {
-    setFilters(prev => ({ ...prev, [name]: value, activePreset: null }));
+    if (name === 'fatturatoRushRange') {
+      const [min, max] = value;
+      // Se il massimo dello slider raggiunge il limite visuale, usa il vero massimo per il filtro
+      const realMax = max === SLIDER_DISPLAY_MAX ? maxFatturatoRush : max;
+      setFilters(prev => ({ ...prev, fatturatoRushRange: [min, realMax], activePreset: null }));
+    } else {
+      setFilters(prev => ({ ...prev, [name]: value, activePreset: null }));
+    }
   };
 
   const handlePresetFilter = (preset) => {
@@ -114,7 +123,7 @@ const ModernAgentsPage = () => {
     { value: 0, label: '0€' },
     { value: 500, label: '500€' },
     { value: 1000, label: '1k€' },
-    { value: maxFatturatoRush, label: `${(maxFatturatoRush / 1000).toFixed(0)}k€` }
+    { value: SLIDER_DISPLAY_MAX, label: `${SLIDER_DISPLAY_MAX / 1000}k€+` }
   ];
 
   return (
@@ -184,14 +193,14 @@ const ModernAgentsPage = () => {
           <div className="filter-group range-group">
             <label className="filter-label"><TrendingUp size={16} /> Range Fatturato Rush</label>
             <Slider
-              value={filters.fatturatoRushRange}
+              value={filters.fatturatoRushRange.map(v => Math.min(v, SLIDER_DISPLAY_MAX))}
               onChange={(e, newValue) => handleFilterChange('fatturatoRushRange', newValue)}
               valueLabelDisplay="auto"
               min={0}
-              max={maxFatturatoRush}
+              max={SLIDER_DISPLAY_MAX}
               step={100}
               marks={marks}
-              valueLabelFormat={value => `€${value.toLocaleString('it-IT')}`}
+              valueLabelFormat={(value) => value === SLIDER_DISPLAY_MAX ? `${value.toLocaleString('it-IT')}€+` : `${value.toLocaleString('it-IT')}€`}
               sx={{ mt: 2 }}
             />
           </div>
