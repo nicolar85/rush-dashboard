@@ -18,6 +18,11 @@ const DYNAMIC_FIELD_PATTERNS = {
     required: true,
     description: 'Sales Manager / Coordinatore'
   },
+  'DISTRETTO': {
+    patterns: ['distretto'],
+    required: false,
+    description: 'Distretto di appartenenza'
+  },
   
   // Metriche finanziarie (OBBLIGATORIE)
   'FATTURATO_RUSH': {
@@ -310,6 +315,7 @@ function parseAgentRow(worksheet, row, mapping) {
   // Campi base (obbligatori)
   agent.nome = getColumnValue('AGENTE', 'string');
   agent.sm = getColumnValue('SM', 'string');
+  agent.distretto = getColumnValue('DISTRETTO', 'string');
   
   // 🔧 FIX: Metriche finanziarie con calcolo corretto
   agent.fatturatoRush = getColumnValue('FATTURATO_RUSH', 'number');
