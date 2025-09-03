@@ -77,13 +77,13 @@ const ModernAgentsPage = () => {
     let newFilters = { ...filters, searchTerm: '', selectedSm: '', activePreset: preset };
     switch (preset) {
       case 'top':
-        newFilters.fatturatoRushRange = [Math.floor(maxFatturatoRush * 0.7), maxFatturatoRush];
+        newFilters.fatturatoRushRange = [1000, maxFatturatoRush];
         break;
       case 'underperforming':
-        newFilters.fatturatoRushRange = [0, Math.floor(maxFatturatoRush * 0.3)];
+        newFilters.fatturatoRushRange = [0, 500];
         break;
       case 'average':
-        newFilters.fatturatoRushRange = [Math.floor(maxFatturatoRush * 0.3), Math.floor(maxFatturatoRush * 0.7)];
+        newFilters.fatturatoRushRange = [500, 1000];
         break;
       default:
         newFilters.fatturatoRushRange = [0, maxFatturatoRush];
