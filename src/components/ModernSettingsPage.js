@@ -234,15 +234,15 @@ const ModernSettingsPage = () => {
                             <tbody>
                                 {users.map(user => (
                                     <tr key={user.id}>
-                                        <td>{user.username}</td>
-                                        <td>{user.full_name}</td>
-                                        <td>
+                                        <td data-label="Username">{user.username}</td>
+                                        <td data-label="Nome Completo">{user.full_name}</td>
+                                        <td data-label="Ruolo">
                                             <span className={`role-badge ${user.role}`}>
                                                 {user.role}
                                             </span>
                                         </td>
-                                        <td>{new Date(user.created_at).toLocaleDateString()}</td>
-                                        <td className="actions-cell">
+                                        <td data-label="Data Creazione">{new Date(user.created_at).toLocaleDateString()}</td>
+                                        <td data-label="Azioni" className="actions-cell">
                                             <button className="action-btn" title="Modifica Ruolo" onClick={() => openModal('role', user)}>
                                                 <Edit size={18} />
                                             </button>

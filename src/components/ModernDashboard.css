@@ -224,3 +224,56 @@
   font-weight: 500;
 }
 .text-yellow-500 { color: #eab308; }
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .dashboard-hero {
+    padding: 32px 24px;
+  }
+  .hero-title {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-hero {
+    padding: 24px 20px;
+  }
+
+  .hero-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .performance-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .perf-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-header {
+    padding: 20px 24px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    padding: 24px;
+  }
+
+  .top-performer {
+    flex-direction: column;
+    text-align: center;
+  }
+}

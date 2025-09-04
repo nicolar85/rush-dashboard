@@ -150,3 +150,67 @@
     background: var(--secondary-btn-bg);
     color: var(--text-primary-color);
 }
+
+@media (max-width: 768px) {
+    .modern-settings-container {
+        padding: 1rem;
+    }
+    .settings-content {
+        padding: 1rem;
+    }
+    .user-list-container {
+        overflow-x: hidden;
+    }
+
+    .user-table, .user-table tbody, .user-table tr, .user-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .user-table thead {
+        display: none;
+    }
+
+    .user-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+
+    .user-table td {
+        padding: 0.5rem 0;
+        padding-left: 50%;
+        position: relative;
+        text-align: right;
+        border-bottom: none;
+    }
+
+    .user-table td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 45%;
+        padding-left: 0.5rem;
+        font-weight: 600;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .actions-cell {
+        justify-content: flex-end;
+        padding-top: 1rem;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

@@ -236,6 +236,7 @@
           padding: 32px;
           cursor: pointer;
           transition: background 0.2s ease;
+          flex-wrap: wrap;
         }
 
         .sm-header:hover {
