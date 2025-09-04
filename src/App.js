@@ -623,7 +623,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'fastweb':
         return <ModernFastwebPage />;
       case 'historical-analysis':
-        return <ModernHistoricalAnalysis />;
+        return <ModernHistoricalAnalysis setActiveSection={setActiveSection} />;
       case 'test':
         return <TestPage />;
       default:
