@@ -624,6 +624,53 @@ class ApiService {
   }
 
   // ================================
+  // ADMIN METHODS
+  // ================================
+
+  /**
+   * Ottieni tutti gli utenti (solo admin)
+   */
+  async getUsers() {
+    // TODO: Il backend deve implementare questo endpoint
+    // GET /api/users
+    // return await this.makeRequest('users');
+    console.warn("apiService.getUsers() è mockato.");
+    return Promise.resolve([
+        { id: 1, username: 'admin', full_name: 'Admin User', role: 'admin', created_at: '2023-01-01' },
+        { id: 2, username: 'viewer', full_name: 'Viewer User', role: 'viewer', created_at: '2023-01-02' },
+    ]);
+  }
+
+  /**
+   * Aggiorna il ruolo di un utente (solo admin)
+   */
+  async updateUserRole(userId, role) {
+    // TODO: Il backend deve implementare questo endpoint
+    // PUT /api/users/{userId}/role
+    // return await this.makeRequest(`users/${userId}/role`, {
+    //   method: 'PUT',
+    //   body: JSON.stringify({ role }),
+    // });
+    console.warn("apiService.updateUserRole() è mockato.");
+    return Promise.resolve({ success: true, message: 'Ruolo aggiornato con successo' });
+  }
+
+  /**
+   * Aggiorna la password di un utente (solo admin)
+   */
+  async adminUpdateUserPassword(userId, newPassword) {
+    // TODO: Il backend deve implementare questo endpoint
+    // PUT /api/users/{userId}/password
+    // return await this.makeRequest(`users/${userId}/password`, {
+    //   method: 'PUT',
+    //   body: JSON.stringify({ new_password: newPassword }),
+    // });
+    console.warn("apiService.adminUpdateUserPassword() è mockato.");
+    return Promise.resolve({ success: true, message: 'Password aggiornata con successo' });
+  }
+
+
+  // ================================
   // BATCH OPERATIONS
   // ================================
 

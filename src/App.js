@@ -14,6 +14,7 @@ import ModernProductsAnalysis from './components/ModernProductsAnalysis'; // Imp
 import ModernNewClientsPage from './components/ModernNewClientsPage'; // Importa la nuova pagina clienti
 import ModernFastwebPage from './components/ModernFastwebPage'; // Importa la nuova pagina Fastweb
 import ModernHistoricalAnalysis from './components/ModernHistoricalAnalysis'; // Importa la pagina Analisi Storica
+import ModernSettingsPage from './components/ModernSettingsPage'; // Importa la pagina Impostazioni
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import ModernDashboard from './components/ModernDashboard'; // Importa la nuova dashboard
 import ModernSidebar from './components/ModernSidebar';
@@ -624,6 +625,8 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
         return <ModernFastwebPage />;
       case 'historical-analysis':
         return <ModernHistoricalAnalysis setActiveSection={setActiveSection} />;
+      case 'settings':
+        return <ModernSettingsPage />;
       case 'test':
         return <TestPage />;
       default:

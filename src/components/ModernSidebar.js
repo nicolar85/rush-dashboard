@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   BarChart3, Users, Trophy, Package, UserPlus, Zap, Upload, History,
-  LogOut, Moon, Sun, X, User, TrendingUp
+  Settings, LogOut, Moon, Sun, X, User, TrendingUp
 } from 'lucide-react';
 
 const ModernSidebar = ({
@@ -17,6 +17,10 @@ const ModernSidebar = ({
     { id: 'fastweb', label: 'Fastweb', icon: Zap, color: 'from-orange-500 to-orange-600', description: 'Contratti Fastweb' },
     { id: 'historical-analysis', label: 'Analisi Storia', icon: History, color: 'from-purple-500 to-purple-600', description: 'Analisi storica dei dati' },
     { id: 'files', label: 'Gestione File', icon: Upload, color: 'from-indigo-500 to-indigo-600', description: 'Upload e gestione' }
+  ];
+
+  const adminMenuItems = [
+    { id: 'settings', label: 'Impostazioni', icon: Settings, color: 'from-gray-500 to-gray-600', description: 'Gestione utenti' }
   ];
 
   const handleItemClick = (itemId) => {
@@ -91,6 +95,30 @@ const ModernSidebar = ({
               );
             })}
           </div>
+
+          {currentUser?.role === 'admin' && (
+            <div className="nav-section">
+              <span className="section-title">Impostazioni</span>
+              {adminMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeSection === item.id;
+                return (
+                  <button key={item.id} className={`nav-item ${isActive ? 'active' : ''}`} onClick={() => handleItemClick(item.id)}>
+                    <div className={`nav-icon bg-gradient-to-r ${item.color}`}>
+                      <Icon size={20} />
+                    </div>
+                    {(!isCollapsed || !isMobile) && (
+                      <div className="nav-content">
+                        <span className="nav-label">{item.label}</span>
+                        <span className="nav-description">{item.description}</span>
+                      </div>
+                    )}
+                    {isActive && <div className="active-indicator" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </nav>
 
         <div className="sidebar-footer">
