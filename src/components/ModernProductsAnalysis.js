@@ -26,7 +26,7 @@ import {
 import {
   Package, Smartphone, Globe, Zap, Phone, Award,
   TrendingUp, BarChart3, PieChart, Users, Target,
-  Filter, Search, Calendar, ArrowUpRight, ArrowDownRight,
+  Filter, ArrowUpRight, ArrowDownRight,
   Wifi, Shield, Star, Activity
 } from 'lucide-react';
 
@@ -46,7 +46,6 @@ const ModernProductsAnalysis = () => {
   const { data, selectedFileDate } = useData();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('volume');
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [viewMode, setViewMode] = useState('cards'); // cards, table, chart
 
   // Aggiungi questi stati al componente
@@ -147,7 +146,7 @@ const ModernProductsAnalysis = () => {
     return Object.fromEntries(
       Object.entries(productsData).filter(([key]) => categoryProducts.includes(key))
     );
-  }, [productsData, selectedCategory]);
+  }, [productsData, selectedCategory, productCategories]);
 
   // Ordina prodotti
   const sortedProducts = useMemo(() => {
@@ -226,28 +225,6 @@ const ModernProductsAnalysis = () => {
     } catch (error) { return []; }
   }, [filteredProductsArray, chartMetric]);
 
-  const topProducts = useMemo(() => {
-    if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) return [];
-    return [...filteredProductsArray]
-      .filter(product => product && product.name)
-      .sort((a, b) => {
-        const aValue = chartMetric === 'fatturato' ? (a.fatturato || 0) : chartMetric === 'volume' ? (a.volume || 0) : (a.agents || 0);
-        const bValue = chartMetric === 'fatturato' ? (b.fatturato || 0) : chartMetric === 'volume' ? (b.volume || 0) : (b.agents || 0);
-        return bValue - aValue;
-      });
-  }, [filteredProductsArray, chartMetric]);
-
-  const getTrendColor = (trend) => {
-    if (trend > 5) return 'text-green-600';
-    if (trend > 0) return 'text-green-500';
-    if (trend > -5) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getTrendIcon = (trend) => {
-    return trend >= 0 ? ArrowUpRight : ArrowDownRight;
-  };
-
   return (
     <div className="modern-products-analysis">
       {/* Header, Stats, Filters, Cards, and Table views remain the same */}
@@ -297,7 +274,7 @@ const ModernProductsAnalysis = () => {
             sortedProducts.map(([productKey, product]) => {
               const Icon = getProductIcon(productKey);
               return (
-                <div key={productKey} className="product-card" onClick={() => setSelectedProduct(product)}>
+                <div key={productKey} className="product-card">
                   <div className="product-header"><div className="product-icon" style={{ background: getProductColor(productKey) }}><Icon size={24} className="text-white" /></div><div className="product-info"><h3 className="product-name">{product.displayName || productKey}</h3><div className="product-meta"><span className="agents-count"><Users size={14} />{product.agents} agenti</span></div></div></div>
                   <div className="product-metrics"><div className="metric-row"><div className="metric-item"><span className="metric-label">Volume</span><span className="metric-value volume">{formatNumber(product.volume)}</span></div>{product.fatturato > 0 && (<div className="metric-item"><span className="metric-label">Fatturato</span><span className="metric-value revenue">{formatCurrency(product.fatturato)}</span></div>)}</div></div>
                   <div className="top-agents"><span className="top-agents-label">Top Performer:</span><div className="agents-list">{product.topAgents.slice(0, 2).map((agent, index) => (<span key={agent} className={`agent-badge ${index === 0 ? 'gold' : 'silver'}`}>{index === 0 && '🥇'} {agent.split(' ')[0]}</span>))}</div></div>
