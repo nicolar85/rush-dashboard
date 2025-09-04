@@ -327,7 +327,7 @@ const ModernHistoricalAnalysis = ({ setActiveSection }) => {
               </div>
               <div className="chart-wrapper">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={historicalStats.monthlyData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <LineChart data={historicalStats.monthlyData} margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
                     <XAxis dataKey="name" tick={{ fill: '#64748b' }} />
                     <YAxis tickFormatter={(value) => chartMetric.includes('Fatturato') ? formatCurrency(value) : formatNumber(value)} tick={{ fill: '#64748b' }} />
