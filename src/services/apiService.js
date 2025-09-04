@@ -669,6 +669,35 @@ class ApiService {
     return Promise.resolve({ success: true, message: 'Password aggiornata con successo' });
   }
 
+  /**
+   * Crea un nuovo utente (solo admin)
+   */
+  async createUser(userData) {
+    // TODO: Il backend deve implementare questo endpoint
+    // POST /api/users
+    // return await this.makeRequest('users', {
+    //   method: 'POST',
+    //   body: JSON.stringify(userData),
+    // });
+    console.warn("apiService.createUser() è mockato.");
+    const newUser = { id: Date.now(), ...userData, created_at: new Date().toISOString() };
+    // Aggiungi a un array locale per il testing, non presente in produzione
+    return Promise.resolve({ success: true, user: newUser });
+  }
+
+  /**
+   * Elimina un utente (solo admin)
+   */
+  async deleteUser(userId) {
+    // TODO: Il backend deve implementare questo endpoint
+    // DELETE /api/users/{userId}
+    // return await this.makeRequest(`users/${userId}`, {
+    //   method: 'DELETE',
+    // });
+    console.warn("apiService.deleteUser() è mockato.");
+    return Promise.resolve({ success: true, message: 'Utente eliminato con successo' });
+  }
+
 
   // ================================
   // BATCH OPERATIONS
