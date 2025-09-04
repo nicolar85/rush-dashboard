@@ -12,6 +12,7 @@ import ModernAgentsPage from './components/ModernAgentsPage'; // Importa la nuov
 import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova pagina classifica SM
 import ModernProductsAnalysis from './components/ModernProductsAnalysis'; // Importa la nuova pagina prodotti
 import ModernNewClientsPage from './components/ModernNewClientsPage'; // Importa la nuova pagina clienti
+import ModernFastwebPage from './components/ModernFastwebPage'; // Importa la nuova pagina Fastweb
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import ModernDashboard from './components/ModernDashboard'; // Importa la nuova dashboard
 import ModernSidebar from './components/ModernSidebar';
@@ -619,7 +620,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'new-clients':
         return <ModernNewClientsPage />;
       case 'fastweb':
-        return <div className="section-placeholder">⚡ Contratti Fastweb - Disponibile dopo caricamento componenti avanzati</div>;
+        return <ModernFastwebPage />;
       case 'test':
         return <TestPage />;
       default:
