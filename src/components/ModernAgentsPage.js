@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../App'; // Importa il context
+import { formatAgentName } from '../utils/formatter';
 import AgentCard from './AgentCard'; // Importa la VERA AgentCard
 import AgentModal from './AgentModal'; // Importa la VERA AgentModal
 import './ModernAgentsPage.css';
@@ -57,7 +58,10 @@ const ModernAgentsPage = () => {
     }
 
     const agentsWithId = file.data.agents.map((agent, index) => ({
-      id: `${file.date}-${agent.nome}-${index}`, ...agent,
+      ...agent,
+      id: `${file.date}-${agent.nome}-${index}`,
+      originalNome: agent.nome,
+      nome: formatAgentName(agent.nome),
     }));
 
     const uniqueSmList = [...new Set(agentsWithId.map(a => a.sm).filter(Boolean))].sort();

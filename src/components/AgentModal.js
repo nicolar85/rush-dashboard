@@ -65,7 +65,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
     }
     return allData.uploadedFiles
       .map(file => {
-        const agentData = file.data?.agents?.find(a => a.nome === agent.nome);
+        const agentData = file.data?.agents?.find(a => a.nome === agent.originalNome);
         return agentData ? {
           name: file.displayDate, // Mappato da 'period' a 'name' per il grafico
           rush: agentData.fatturatoRush || 0, // Mappato da 'fatturatoRush' a 'rush'
