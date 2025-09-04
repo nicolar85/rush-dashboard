@@ -665,169 +665,105 @@ const ModernProductsAnalysis = () => {
         </div>
       )}
 
+      {/* ======================================================= */}
+      {/* ============= BLOCCO GRAFICI CORRETTO ================= */}
+      {/* ======================================================= */}
       {viewMode === 'chart' && (
-  <div className="charts-container-real">
-    <div className="chart-controls">
-      <div className="chart-type-selector">
-        <label>Tipo Grafico:</label>
-        <select value={chartType} onChange={(e) => setChartType(e.target.value)}>
-          <option value="pie">Grafico a Torta</option>
-          <option value="bar">Grafico a Barre</option>
-          <option value="line">Grafico Lineare</option>
-          <option value="area">Grafico ad Area</option>
-        </select>
-      </div>
-      <div className="chart-metric-selector">
-        <label>Metrica:</label>
-        <select value={chartMetric} onChange={(e) => setChartMetric(e.target.value)}>
-          <option value="fatturato">Fatturato</option>
-          <option value="volume">Volume</option>
-          <option value="agents">N° Agenti</option>
-        </select>
-      </div>
-    </div>
-
-    {/* DEBUG INFO - Mostra sempre */}
-    <div style={{
-      padding: '20px',
-      background: '#f0f9ff',
-      border: '1px solid #0ea5e9',
-      borderRadius: '8px',
-      marginBottom: '20px'
-    }}>
-      <h4>🔍 DEBUG INFO</h4>
-      <p><strong>selectedFileDate:</strong> {selectedFileDate || 'nessuno'}</p>
-      <p><strong>data.uploadedFiles:</strong> {data.uploadedFiles?.length || 0} files</p>
-      <p><strong>chartData:</strong> {chartData ? `${chartData.length} elementi` : 'null/undefined'}</p>
-      <p><strong>filteredProductsArray:</strong> {filteredProductsArray?.length || 0} elementi</p>
-      <p><strong>productsData keys:</strong> {Object.keys(productsData || {}).length}</p>
-      <p><strong>viewMode:</strong> {viewMode}</p>
-      <p><strong>chartType:</strong> {chartType}</p>
-
-      <details>
-        <summary>Dati uploadedFiles</summary>
-        <pre style={{ fontSize: '12px', overflow: 'auto', maxHeight: '200px' }}>
-          {JSON.stringify(data.uploadedFiles?.map(f => ({
-            date: f.date,
-            name: f.name,
-            hasData: !!f.data,
-            hasAgents: !!f.data?.agents,
-            agentsCount: f.data?.agents?.length || 0
-          })), null, 2)}
-        </pre>
-      </details>
-    </div>
-
-    {/* CONTROLLO ULTRA-RIGOROSO PRIMA DEI GRAFICI */}
-    {(() => {
-      // Verifica step-by-step
-      if (!selectedFileDate) {
-        return (
-          <div style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', border: '1px solid #ef4444', borderRadius: '8px' }}>
-            <h3>❌ ERRORE: Nessun file selezionato</h3>
-            <p>selectedFileDate è: {String(selectedFileDate)}</p>
+      <div className="charts-container-real">
+        <div className="chart-controls">
+          <div className="chart-type-selector">
+            <label>Tipo Grafico:</label>
+            <select value={chartType} onChange={(e) => setChartType(e.target.value)}>
+              <option value="pie">Grafico a Torta</option>
+              <option value="bar">Grafico a Barre</option>
+              <option value="line">Grafico Lineare</option>
+              <option value="area">Grafico ad Area</option>
+            </select>
           </div>
-        );
-      }
-
-      if (!data.uploadedFiles || data.uploadedFiles.length === 0) {
-        return (
-          <div style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', border: '1px solid #ef4444', borderRadius: '8px' }}>
-            <h3>❌ ERRORE: Nessun file caricato</h3>
-            <p>uploadedFiles: {String(data.uploadedFiles)}</p>
+          <div className="chart-metric-selector">
+            <label>Metrica:</label>
+            <select value={chartMetric} onChange={(e) => setChartMetric(e.target.value)}>
+              <option value="fatturato">Fatturato</option>
+              <option value="volume">Volume</option>
+              <option value="agents">N° Agenti</option>
+            </select>
           </div>
-        );
-      }
+        </div>
 
-      if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
-        return (
-          <div style={{ padding: '40px', textAlign: 'center', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px' }}>
+        {/* MANTENIAMO IL TUO BLOCCO DI DEBUG, È UTILE! */}
+        <div style={{
+          padding: '20px',
+          background: '#f0f9ff',
+          border: '1px solid #0ea5e9',
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          <h4>🔍 DEBUG INFO</h4>
+          <p><strong>chartData:</strong> {chartData ? `${chartData.length} elementi` : 'null/undefined'}</p>
+          <p><strong>filteredProductsArray:</strong> {filteredProductsArray?.length || 0} elementi</p>
+        </div>
+
+        {/* CONTROLLO E RENDERIZZAZIONE DEL GRAFICO REALE */}
+        {!chartData || chartData.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', background: '#fffbeb', border: '1px solid #fde047', borderRadius: '8px' }}>
+            <Package size={48} className="opacity-30" />
             <h3>⚠️ NESSUN DATO PER I GRAFICI</h3>
-            <p>chartData: {JSON.stringify(chartData)}</p>
-            <p>Prova a cambiare file o controlla che i dati siano stati caricati correttamente.</p>
+            <p>Prova a cambiare file, filtri, o controlla che i dati siano stati caricati correttamente.</p>
           </div>
-        );
-      }
-
-      // Verifica che ogni elemento di chartData sia valido
-      const invalidItems = chartData.filter(item =>
-        !item ||
-        !item.name ||
-        typeof item.name !== 'string' ||
-        typeof item.value !== 'number' ||
-        isNaN(item.value)
-      );
-
-      if (invalidItems.length > 0) {
-        return (
-          <div style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', border: '1px solid #ef4444', borderRadius: '8px' }}>
-            <h3>❌ ERRORE: Dati chartData non validi</h3>
-            <p>{invalidItems.length} elementi non validi su {chartData.length}</p>
-            <details>
-              <summary>Elementi non validi</summary>
-              <pre style={{ fontSize: '12px' }}>{JSON.stringify(invalidItems, null, 2)}</pre>
-            </details>
-          </div>
-        );
-      }
-
-      // Se arriviamo qui, i dati sono validi - PROVA GRAFICO SEMPLICE
-      return (
-        <div className="charts-grid">
-          <div className="main-chart-card">
-            <div className="chart-header">
-              <h3>✅ Test Grafico - {chartType}</h3>
-              <p>Dati validi: {chartData.length} elementi</p>
-            </div>
-
-            <div className="chart-wrapper">
-              {/* VERSIONE SEMPLIFICATA SENZA ResponsiveContainer PER TEST */}
-              <div style={{
-                width: '100%',
-                height: '400px',
-                background: '#f8fafc',
-                border: '2px dashed #cbd5e1',
-                borderRadius: '8px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '20px'
-              }}>
-                <h4>📊 Dati pronti per il grafico {chartType.toUpperCase()}</h4>
-                <p>Tipo: {chartType} | Metrica: {chartMetric}</p>
-
-                {/* Lista semplice dei dati invece del grafico */}
-                <div style={{ maxHeight: '200px', overflow: 'auto', width: '100%' }}>
-                  <table style={{ width: '100%', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ background: '#e2e8f0' }}>
-                        <th style={{ padding: '8px' }}>Prodotto</th>
-                        <th style={{ padding: '8px' }}>Valore</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chartData.slice(0, 10).map((item, index) => (
-                        <tr key={index}>
-                          <td style={{ padding: '4px' }}>{item.name}</td>
-                          <td style={{ padding: '4px' }}>{item.value}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '10px' }}>
-                  ⚠️ ResponsiveContainer temporaneamente disabilitato per debug
-                </p>
+        ) : (
+          <div className="charts-grid">
+            <div className="main-chart-card">
+              <div className="chart-header">
+                <h3>Distribuzione per {chartMetric}</h3>
+              </div>
+              <div className="chart-wrapper" style={{ width: '100%', height: '400px' }}>
+                <ResponsiveContainer>
+                  {/* === LA CORREZIONE È QUI: RIMOSSO IL <> INUTILE === */}
+                  { chartType === 'pie' ? (
+                    <RechartsPieChart>
+                      <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120}>
+                        {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                    </RechartsPieChart>
+                  ) : chartType === 'bar' ? (
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-25} textAnchor="end" height={80} interval={0} fontSize={10} />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} />
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                      <Bar dataKey="value">
+                        {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  ) : chartType === 'line' ? (
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} />
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                      <Line type="monotone" dataKey="value" stroke={CHART_COLORS[0]} />
+                    </LineChart>
+                  ) : ( // Area Chart
+                    <AreaChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} />
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                      <Area type="monotone" dataKey="value" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.3} />
+                    </AreaChart>
+                  )}
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
-        </div>
-      );
-    })()}
-  </div>
-)}
+        )}
+      </div>
+    )}
 
     </div>
   );
