@@ -94,79 +94,104 @@ const ModernProductsAnalysis = () => {
   };
 
   // Processamento dati prodotti
-  const productsData = useMemo(() => {
-    if (!selectedFileDate || !data.uploadedFiles?.length) {
-      return {};
+const productsData = useMemo(() => {
+  // 🔧 FIX: Controlla prima che ci siano dati
+  if (!selectedFileDate || !data.uploadedFiles?.length) {
+    console.log('ModernProductsAnalysis: Nessun file selezionato o caricato');
+    return {};
+  }
+
+  // 🔧 FIX: Prova prima uploadedFiles (nuovo formato), poi processedData (vecchio formato)
+  let agents = null;
+
+  // Nuovo formato: cerca in uploadedFiles
+  const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
+  if (file?.data?.agents) {
+    agents = file.data.agents;
+    console.log(`ModernProductsAnalysis: Trovati ${agents.length} agenti in uploadedFiles`);
+  }
+  // Fallback: cerca in processedData (compatibilità vecchi dati)
+  else if (data.processedData[selectedFileDate]?.agents) {
+    agents = data.processedData[selectedFileDate].agents;
+    console.log(`ModernProductsAnalysis: Trovati ${agents.length} agenti in processedData`);
+  }
+
+  // 🔧 FIX: Se non ci sono agenti, ritorna oggetto vuoto
+  if (!agents || !Array.isArray(agents) || agents.length === 0) {
+    console.log('ModernProductsAnalysis: Nessun agente trovato');
+    return {};
+  }
+
+  const products = {};
+  const productMapping = {
+    simVoce: 'SIM Voce',
+    simDati: 'SIM Dati',
+    mnp: 'MNP',
+    easyRent: 'Easy Rent',
+    adsl: 'ADSL',
+    linkOu: 'Link OU',
+    linkOa: 'Link OA',
+    linkOaStart: 'Link OA Start',
+    interniOa: 'Interni OA',
+    sdm: 'SDM',
+    ssc: 'SSC',
+    yourBackup: 'Your Backup',
+    cloudNas: 'Cloud NAS',
+    miia: 'MIIA',
+    easyGdpr: 'Easy GDPR',
+    fastwebEnergia: 'Fastweb Energia',
+    station: 'Station'
+  };
+
+  const revenueKeyMapping = {
+    simVoce: 'fatturatoVoce',
+    simDati: 'fatturatoDati',
+    easyRent: 'fatturatoEasyRent',
+    linkOu: 'fatturatoOu',
+    linkOa: 'fatturatoOa',
+    easyDeal: 'fatturatoEasyDeal',
+    altro: 'fatturatoAltro',
+    serviziDigitali: 'fatturatoServiziDigitali',
+    custom: 'fatturatoCustom',
+    sdm: 'fatturatoSdm',
+    ssc: 'fatturatoSsc',
+    yourBackup: 'fatturatoYourBackup',
+    cloudNas: 'fatturatoCloudNas',
+    easyGdpr: 'fatturatoEasyGdpr',
+    miia: 'fatturatoMiia',
+    nuovoCliente: 'fatturatoNuovoCliente'
+  };
+
+  // Aggrega dati per prodotto
+  Object.keys(productMapping).forEach(key => {
+    const revenueKey = revenueKeyMapping[key] || `fatturato${key.charAt(0).toUpperCase() + key.slice(1)}`;
+
+    // 🔧 FIX: Filtra agenti validi prima di processarli
+    const agentsWithProduct = agents
+      .filter(agent => agent && typeof agent === 'object') // Filtra agenti validi
+      .map(agent => ({
+        nome: agent.nome || 'N/A',
+        volume: Number(agent[key]) || 0, // Forza conversione a numero
+        fatturato: Number(agent[revenueKey]) || 0 // Forza conversione a numero
+      }))
+      .filter(item => item.volume > 0) // Solo agenti con volume > 0
+      .sort((a, b) => b.volume - a.volume);
+
+    // 🔧 FIX: Aggiungi prodotto solo se ha agenti validi
+    if (agentsWithProduct.length > 0) {
+      products[key] = {
+        displayName: productMapping[key],
+        volume: agentsWithProduct.reduce((sum, item) => sum + item.volume, 0),
+        fatturato: agentsWithProduct.reduce((sum, item) => sum + item.fatturato, 0),
+        agents: agentsWithProduct.length,
+        topAgents: agentsWithProduct.slice(0, 3).map(item => formatAgentName(item.nome))
+      };
     }
+  });
 
-    const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
-    if (!file?.data?.agents) return {};
-
-    const products = {};
-    const productMapping = {
-      simVoce: 'SIM Voce',
-      simDati: 'SIM Dati',
-      mnp: 'MNP',
-      easyRent: 'Easy Rent',
-      adsl: 'ADSL',
-      linkOu: 'Link OU',
-      linkOa: 'Link OA',
-      linkOaStart: 'Link OA Start',
-      interniOa: 'Interni OA',
-      sdm: 'SDM',
-      ssc: 'SSC',
-      yourBackup: 'Your Backup',
-      cloudNas: 'Cloud NAS',
-      miia: 'MIIA',
-      easyGdpr: 'Easy GDPR',
-      fastwebEnergia: 'Fastweb Energia',
-      station: 'Station'
-    };
-
-    const revenueKeyMapping = {
-      simVoce: 'fatturatoVoce',
-      simDati: 'fatturatoDati',
-      easyRent: 'fatturatoEasyRent',
-      linkOu: 'fatturatoOu',
-      linkOa: 'fatturatoOa',
-      easyDeal: 'fatturatoEasyDeal',
-      altro: 'fatturatoAltro',
-      serviziDigitali: 'fatturatoServiziDigitali',
-      custom: 'fatturatoCustom',
-      sdm: 'fatturatoSdm',
-      ssc: 'fatturatoSsc',
-      yourBackup: 'fatturatoYourBackup',
-      cloudNas: 'fatturatoCloudNas',
-      easyGdpr: 'fatturatoEasyGdpr',
-      miia: 'fatturatoMiia',
-      nuovoCliente: 'fatturatoNuovoCliente'
-    };
-
-    // Aggrega dati per prodotto
-    Object.keys(productMapping).forEach(key => {
-      const revenueKey = revenueKeyMapping[key] || `fatturato${key.charAt(0).toUpperCase() + key.slice(1)}`;
-      const agentsWithProduct = file.data.agents
-        .map(agent => ({
-          nome: agent.nome,
-          volume: agent[key] || 0,
-          fatturato: agent[revenueKey] || 0
-        }))
-        .filter(item => item.volume > 0)
-        .sort((a, b) => b.volume - a.volume);
-
-      if (agentsWithProduct.length > 0) {
-        products[key] = {
-          displayName: productMapping[key],
-          volume: agentsWithProduct.reduce((sum, item) => sum + item.volume, 0),
-          fatturato: agentsWithProduct.reduce((sum, item) => sum + item.fatturato, 0),
-          agents: agentsWithProduct.length,
-          topAgents: agentsWithProduct.slice(0, 3).map(item => formatAgentName(item.nome))
-        };
-      }
-    });
-
-    return products;
-  }, [data, selectedFileDate]);
+  console.log(`ModernProductsAnalysis: Elaborati ${Object.keys(products).length} prodotti`, products);
+  return products;
+}, [data, selectedFileDate]);
 
   // Filtra prodotti per categoria
   const filteredProducts = useMemo(() => {
@@ -255,30 +280,53 @@ const ModernProductsAnalysis = () => {
     }));
   }, [filteredProducts]);
 
-  // Preparazione dati per i grafici
-  const chartData = useMemo(() => {
-    if (!filteredProductsArray || filteredProductsArray.length === 0) return [];
+// 🔧 FIX: Sostituisci il chartData useMemo esistente con questo:
+const chartData = useMemo(() => {
+  // 🔧 FIX: Controllo sicurezza sui dati
+  if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) {
+    console.log('ModernProductsAnalysis: chartData - Nessun prodotto filtrato disponibile');
+    return [];
+  }
 
-    return filteredProductsArray.map(product => ({
-      name: getProductDisplayName(product.name),
-      value: chartMetric === 'fatturato' ? product.fatturato :
-            chartMetric === 'volume' ? product.volume :
-            product.agents
-    })).sort((a, b) => b.value - a.value);
-  }, [filteredProductsArray, chartMetric]);
+  const data = filteredProductsArray
+    .filter(product => product && product.name) // Filtra prodotti validi
+    .map(product => {
+      // 🔧 FIX: Gestione sicura dei valori
+      const value = chartMetric === 'fatturato' ? (product.fatturato || 0) :
+                   chartMetric === 'volume' ? (product.volume || 0) :
+                   (product.agents || 0);
 
-  // Top products per le cards
-  const topProducts = useMemo(() => {
-    return [...(filteredProductsArray || [])].sort((a, b) => {
-      const aValue = chartMetric === 'fatturato' ? a.fatturato :
-                    chartMetric === 'volume' ? a.volume :
-                    a.agents;
-      const bValue = chartMetric === 'fatturato' ? b.fatturato :
-                    chartMetric === 'volume' ? b.volume :
-                    b.agents;
+      return {
+        name: getProductDisplayName(product.name),
+        value: Number(value) || 0 // Forza conversione a numero
+      };
+    })
+    .filter(item => item.value > 0) // Rimuovi elementi con valore 0
+    .sort((a, b) => b.value - a.value);
+
+  console.log(`ModernProductsAnalysis: chartData generato per ${chartMetric}:`, data);
+  return data;
+}, [filteredProductsArray, chartMetric]);
+
+// 🔧 FIX: Rimuovi la doppia definizione di topProducts e usa solo questa:
+const topProducts = useMemo(() => {
+  if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) {
+    console.log('ModernProductsAnalysis: topProducts - Nessun prodotto disponibile');
+    return [];
+  }
+
+  return [...filteredProductsArray]
+    .filter(product => product && product.name) // Filtra prodotti validi
+    .sort((a, b) => {
+      const aValue = chartMetric === 'fatturato' ? (a.fatturato || 0) :
+                    chartMetric === 'volume' ? (a.volume || 0) :
+                    (a.agents || 0);
+      const bValue = chartMetric === 'fatturato' ? (b.fatturato || 0) :
+                    chartMetric === 'volume' ? (b.volume || 0) :
+                    (b.agents || 0);
       return bValue - aValue;
     });
-  }, [filteredProductsArray, chartMetric]);
+}, [filteredProductsArray, chartMetric]);
 
   const getTrendColor = (trend) => {
     if (trend > 5) return 'text-green-600';
@@ -545,8 +593,7 @@ const ModernProductsAnalysis = () => {
         </div>
       )}
 
-      {/* Contenuto principale - Chart View */}
-      {viewMode === 'chart' && (
+{viewMode === 'chart' && (
   <div className="charts-container-real">
     {/* Chart Controls */}
     <div className="chart-controls">
@@ -570,220 +617,190 @@ const ModernProductsAnalysis = () => {
       </div>
     </div>
 
-    {/* Charts Grid */}
-    <div className="charts-grid">
-      {/* Main Chart */}
-      <div className="main-chart-card">
-        <div className="chart-header">
-          <h3>
-            {chartType === 'pie' && 'Distribuzione per Prodotto'}
-            {chartType === 'bar' && 'Confronto Prodotti'}
-            {chartType === 'line' && 'Trend Prodotti'}
-            {chartType === 'area' && 'Performance Cumulativa'}
-          </h3>
-          <div className="chart-info">
-            <span className="chart-total">
-              {chartMetric === 'fatturato' && `Totale: ${formatCurrency(totalStats.totalRevenue)}`}
-              {chartMetric === 'volume' && `Totale: ${formatNumber(totalStats.totalVolume)}`}
-              {chartMetric === 'agents' && `Totale: ${totalStats.totalProducts} prodotti`}
-            </span>
-          </div>
-        </div>
-
-        <div className="chart-wrapper">
-          <ResponsiveContainer width="100%" height={400}>
-            {chartType === 'pie' && (
-              <RechartsPieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
-                  outerRadius={120}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) =>
-                  chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                } />
-              </RechartsPieChart>
-            )}
-
-            {chartType === 'bar' && (
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis
-                  dataKey="name"
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  interval={0}
-                />
-                <YAxis
-                  tickFormatter={(value) =>
-                    chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                  }
-                />
-                <Tooltip
-                  formatter={(value) =>
-                    chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                  }
-                />
-                <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            )}
-
-            {chartType === 'line' && (
-              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" />
-                <YAxis
-                  tickFormatter={(value) =>
-                    chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                  }
-                />
-                <Tooltip
-                  formatter={(value) =>
-                    chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#8b5cf6"
-                  strokeWidth={3}
-                  dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 6 }}
-                  activeDot={{ r: 8, stroke: '#8b5cf6', strokeWidth: 2 }}
-                />
-              </LineChart>
-            )}
-
-            {chartType === 'area' && (
-              <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" />
-                <YAxis
-                  tickFormatter={(value) =>
-                    chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                  }
-                />
-                <Tooltip
-                  formatter={(value) =>
-                    chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  fill="url(#colorGradient)"
-                />
-                <defs>
-                  <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-              </AreaChart>
-            )}
-          </ResponsiveContainer>
-        </div>
+    {/* 🔧 FIX: Controllo condizionale prima del rendering */}
+    {!chartData || chartData.length === 0 ? (
+      <div className="no-chart-data">
+        <Package size={48} className="opacity-30" />
+        <h3>Nessun dato disponibile per i grafici</h3>
+        <p>Non ci sono dati sufficienti per generare il grafico richiesto.</p>
+        <p>Controlla i filtri attivi o carica un file con dati prodotti.</p>
       </div>
-
-      {/* Top Products Card */}
-      <div className="top-products-card">
-        <h4>Top 5 Prodotti</h4>
-        <div className="top-products-list">
-          {topProducts.slice(0, 5).map((product, index) => {
-            const Icon = getProductIcon(product.name);
-            return (
-              <div key={index} className="top-product-item">
-                <div className="rank-badge">{index + 1}</div>
-                <div className="product-icon-mini" style={{ background: getProductColor(product.name) }}>
-                  <Icon size={16} color="white" />
-                </div>
-                <div className="product-details">
-                  <span className="product-name">{getProductDisplayName(product.name)}</span>
-                  <span className="product-value">
-                    {chartMetric === 'fatturato' && formatCurrency(product.fatturato)}
-                    {chartMetric === 'volume' && formatNumber(product.volume)}
-                    {chartMetric === 'agents' && `${product.agents} agenti`}
-                  </span>
-                </div>
-                <div className="product-percentage">
-                  {((product[chartMetric === 'agents' ? 'agents' : chartMetric] /
-                     totalStats[chartMetric === 'fatturato' ? 'totalRevenue' : chartMetric === 'volume' ? 'totalVolume' : 'totalProducts']) * 100).toFixed(1)}%
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Stats Summary Card */}
-      <div className="chart-stats-card">
-        <h4>Statistiche Rapide</h4>
-        <div className="quick-stats">
-          <div className="quick-stat">
-            <div className="stat-icon success">
-              <TrendingUp size={20} />
-            </div>
-            <div className="stat-info">
-              <span className="stat-label">Prodotto Top</span>
-              <span className="stat-value">{getProductDisplayName(topProducts[0]?.name || '')}</span>
-            </div>
-          </div>
-
-          <div className="quick-stat">
-            <div className="stat-icon info">
-              <Target size={20} />
-            </div>
-            <div className="stat-info">
-              <span className="stat-label">Media per Prodotto</span>
-              <span className="stat-value">
-                {chartMetric === 'fatturato' && formatCurrency(totalStats.totalRevenue / totalStats.totalProducts)}
-                {chartMetric === 'volume' && formatNumber(totalStats.totalVolume / totalStats.totalProducts)}
-                {chartMetric === 'agents' && formatNumber(totalStats.totalProducts)}
+    ) : (
+      <div className="charts-grid">
+        {/* Main Chart */}
+        <div className="main-chart-card">
+          <div className="chart-header">
+            <h3>
+              {chartType === 'pie' && 'Distribuzione per Prodotto'}
+              {chartType === 'bar' && 'Confronto Prodotti'}
+              {chartType === 'line' && 'Trend Prodotti'}
+              {chartType === 'area' && 'Performance Cumulativa'}
+            </h3>
+            <div className="chart-info">
+              <span className="chart-total">
+                {chartMetric === 'fatturato' && `Totale: ${formatCurrency(totalStats.totalRevenue)}`}
+                {chartMetric === 'volume' && `Totale: ${formatNumber(totalStats.totalVolume)}`}
+                {chartMetric === 'agents' && `Totale: ${totalStats.totalProducts} prodotti`}
               </span>
             </div>
           </div>
 
-          <div className="quick-stat">
-            <div className="stat-icon accent">
-              <Award size={20} />
-            </div>
-            <div className="stat-info">
-              <span className="stat-label">Performance</span>
-              <span className="stat-value">
-                {topProducts.length > 1 && (
-                  <span className={
-                    topProducts[0][chartMetric === 'agents' ? 'agents' : chartMetric] >
-                    topProducts[1][chartMetric === 'agents' ? 'agents' : chartMetric]
-                      ? 'text-green-600' : 'text-red-600'
-                  }>
-                    {topProducts[0][chartMetric === 'agents' ? 'agents' : chartMetric] >
-                     topProducts[1][chartMetric === 'agents' ? 'agents' : chartMetric] ? '+' : ''}
-                    {(((topProducts[0][chartMetric === 'agents' ? 'agents' : chartMetric] -
-                        topProducts[1][chartMetric === 'agents' ? 'agents' : chartMetric]) /
-                        topProducts[1][chartMetric === 'agents' ? 'agents' : chartMetric]) * 100).toFixed(1)}%
-                  </span>
+          <div className="chart-wrapper">
+            {/* 🔧 FIX: Controllo aggiuntivo prima di ResponsiveContainer */}
+            {chartData && chartData.length > 0 && (
+              <ResponsiveContainer width="100%" height={400}>
+                {chartType === 'pie' && (
+                  <RechartsPieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                      outerRadius={120}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) =>
+                      chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
+                    } />
+                  </RechartsPieChart>
                 )}
-              </span>
-            </div>
+
+                {chartType === 'bar' && (
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      interval={0}
+                    />
+                    <YAxis
+                      tickFormatter={(value) =>
+                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
+                      }
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
+                      }
+                    />
+                    <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                )}
+
+                {chartType === 'line' && (
+                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" />
+                    <YAxis
+                      tickFormatter={(value) =>
+                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
+                      }
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                    />
+                  </LineChart>
+                )}
+
+                {chartType === 'area' && (
+                  <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" />
+                    <YAxis
+                      tickFormatter={(value) =>
+                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
+                      }
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
+                      }
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      fill="url(#colorGradient)"
+                    />
+                    <defs>
+                      <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                  </AreaChart>
+                )}
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
+
+        {/* Top Products Card */}
+        {/* 🔧 FIX: Controllo sui topProducts prima del rendering */}
+        {topProducts && topProducts.length > 0 && (
+          <div className="top-products-card">
+            <h4>Top 5 Prodotti</h4>
+            <div className="top-products-list">
+              {topProducts.slice(0, 5).map((product, index) => {
+                const Icon = getProductIcon(product.name);
+                const metricValue = chartMetric === 'fatturato' ? product.fatturato :
+                                  chartMetric === 'volume' ? product.volume :
+                                  product.agents;
+                return (
+                  <div key={`${product.name}-${index}`} className="top-product-item">
+                    <div className="rank-badge">{index + 1}</div>
+                    <div className="product-icon-mini" style={{ background: getProductColor(product.name) }}>
+                      <Icon size={16} color="white" />
+                    </div>
+                    <div className="product-details">
+                      <span className="product-name">{getProductDisplayName(product.name)}</span>
+                      <span className="product-value">
+                        {chartMetric === 'fatturato' && formatCurrency(metricValue)}
+                        {chartMetric === 'volume' && formatNumber(metricValue)}
+                        {chartMetric === 'agents' && `${metricValue} agenti`}
+                      </span>
+                    </div>
+                    <div className="product-percentage">
+                      {totalStats.totalRevenue > 0 && (
+                        <>
+                          {((metricValue / totalStats[
+                            chartMetric === 'fatturato' ? 'totalRevenue' :
+                            chartMetric === 'volume' ? 'totalVolume' :
+                            'totalProducts'
+                          ]) * 100).toFixed(1)}%
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    )}
   </div>
 )}
 

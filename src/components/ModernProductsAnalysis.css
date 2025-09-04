@@ -947,3 +947,37 @@
 .agent-badge:hover {
   transform: translateY(-1px);
 }
+
+/* Aggiungi al file ModernProductsAnalysis.css */
+
+.no-chart-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  text-align: center;
+  grid-column: 1 / -1; /* Occupa tutta la larghezza della grid */
+}
+
+.no-chart-data h3 {
+  margin: 16px 0 8px 0;
+  color: #64748b;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.no-chart-data p {
+  color: #94a3b8;
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.no-chart-data p:last-child {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
