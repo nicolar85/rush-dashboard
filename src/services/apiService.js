@@ -631,71 +631,46 @@ class ApiService {
    * Ottieni tutti gli utenti (solo admin)
    */
   async getUsers() {
-    // TODO: Il backend deve implementare questo endpoint
-    // GET /api/users
-    // return await this.makeRequest('users');
-    console.warn("apiService.getUsers() è mockato.");
-    return Promise.resolve([
-        { id: 1, username: 'admin', full_name: 'Admin User', role: 'admin', created_at: '2023-01-01' },
-        { id: 2, username: 'viewer', full_name: 'Viewer User', role: 'viewer', created_at: '2023-01-02' },
-    ]);
+    return await this.makeRequest('users');
   }
 
   /**
    * Aggiorna il ruolo di un utente (solo admin)
    */
   async updateUserRole(userId, role) {
-    // TODO: Il backend deve implementare questo endpoint
-    // PUT /api/users/{userId}/role
-    // return await this.makeRequest(`users/${userId}/role`, {
-    //   method: 'PUT',
-    //   body: JSON.stringify({ role }),
-    // });
-    console.warn("apiService.updateUserRole() è mockato.");
-    return Promise.resolve({ success: true, message: 'Ruolo aggiornato con successo' });
+    return await this.makeRequest(`users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
   }
 
   /**
    * Aggiorna la password di un utente (solo admin)
    */
   async adminUpdateUserPassword(userId, newPassword) {
-    // TODO: Il backend deve implementare questo endpoint
-    // PUT /api/users/{userId}/password
-    // return await this.makeRequest(`users/${userId}/password`, {
-    //   method: 'PUT',
-    //   body: JSON.stringify({ new_password: newPassword }),
-    // });
-    console.warn("apiService.adminUpdateUserPassword() è mockato.");
-    return Promise.resolve({ success: true, message: 'Password aggiornata con successo' });
+    return await this.makeRequest(`users/${userId}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ new_password: newPassword }),
+    });
   }
 
   /**
    * Crea un nuovo utente (solo admin)
    */
   async createUser(userData) {
-    // TODO: Il backend deve implementare questo endpoint
-    // POST /api/users
-    // return await this.makeRequest('users', {
-    //   method: 'POST',
-    //   body: JSON.stringify(userData),
-    // });
-    console.warn("apiService.createUser() è mockato.");
-    const newUser = { id: Date.now(), ...userData, created_at: new Date().toISOString() };
-    // Aggiungi a un array locale per il testing, non presente in produzione
-    return Promise.resolve({ success: true, user: newUser });
+    return await this.makeRequest('users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
   }
 
   /**
    * Elimina un utente (solo admin)
    */
   async deleteUser(userId) {
-    // TODO: Il backend deve implementare questo endpoint
-    // DELETE /api/users/{userId}
-    // return await this.makeRequest(`users/${userId}`, {
-    //   method: 'DELETE',
-    // });
-    console.warn("apiService.deleteUser() è mockato.");
-    return Promise.resolve({ success: true, message: 'Utente eliminato con successo' });
+    return await this.makeRequest(`users/${userId}`, {
+      method: 'DELETE',
+    });
   }
 
 
