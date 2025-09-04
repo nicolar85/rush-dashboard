@@ -631,7 +631,15 @@ class ApiService {
    * Ottieni tutti gli utenti (solo admin)
    */
   async getUsers() {
-    return await this.makeRequest('users');
+    const response = await this.makeRequest('users');
+    // Il backend restituisce un oggetto { success: true, 0: user1, 1: user2, ... }
+    // a causa della funzione helper `respondWithSuccess`. Lo convertiamo in un array.
+    if (response && typeof response === 'object' && response.success) {
+      delete response.success;
+      return Object.values(response);
+    }
+    // Fallback nel caso in cui la risposta sia già un array o non valida
+    return Array.isArray(response) ? response : [];
   }
 
   /**
