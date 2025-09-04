@@ -2,6 +2,7 @@ import React from 'react';
 import { formatCurrency } from '../utils/excelParser';
 import { DollarSign, TrendingUp, Award, User, Package } from 'lucide-react';
 import './AgentCard.css';
+import { formatAgentName } from '../utils/formatter';
 
 const AgentCard = ({ agent, onClick }) => {
   // Determina la classe di performance basata sul fatturato rush
@@ -47,27 +48,27 @@ const AgentCard = ({ agent, onClick }) => {
         </div>
         <div className="info-modern">
           <h3 className="name-modern">{agent.nome}</h3>
-          <p className="sm-modern">{agent.sm || 'N/A'}</p>
+          <p className="sm-modern">{agent.sm ? formatAgentName(agent.sm) : 'N/A'}</p>
         </div>
       </div>
 
       {/* Corpo Moderno */}
       <div className="card-body-modern">
         <div className="stats-grid-modern">
-          <Stat
-            icon={<TrendingUp size={20} />}
-            label="Rush"
-            value={formatCurrency(agent.fatturatoRush || 0)}
+          <Stat 
+            icon={<DollarSign size={20} />} 
+            label="Fatturato" 
+            value={formatCurrency(agent.fatturato?.complessivo || 0)} 
           />
-          <Stat
-            icon={<DollarSign size={20} />}
-            label="Fatturato"
-            value={formatCurrency(agent.fatturato?.complessivo || 0)}
+          <Stat 
+            icon={<TrendingUp size={20} />} 
+            label="Rush" 
+            value={formatCurrency(agent.fatturatoRush || 0)} 
           />
-          <Stat
-            icon={<Award size={20} />}
-            label="Bonus"
-            value={formatCurrency(agent.bonusRisultati || 0)}
+          <Stat 
+            icon={<Award size={20} />} 
+            label="Bonus" 
+            value={formatCurrency(agent.bonusRisultati || 0)} 
           />
         </div>
       </div>

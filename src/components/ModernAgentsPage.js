@@ -191,7 +191,7 @@ const ModernAgentsPage = () => {
             <label className="filter-label"><Users size={16} /> Coordinatore</label>
             <select value={filters.selectedSm} onChange={(e) => handleFilterChange('selectedSm', e.target.value)} className="modern-select">
               <option value="">Tutti i Coordinatori</option>
-              {smList.map(sm => <option key={sm} value={sm}>{sm}</option>)}
+              {smList.map(sm => <option key={sm} value={sm}>{formatAgentName(sm)}</option>)}
             </select>
           </div>
           <div className="filter-group range-group">

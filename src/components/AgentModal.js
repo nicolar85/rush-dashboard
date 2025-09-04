@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { User, TrendingUp, DollarSign, Award, Phone, Smartphone, Globe, Shield, X, Calendar, MapPin, Zap, Package, ChevronDown, BarChart3 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../utils/excelParser';
+import { formatAgentName } from '../utils/formatter';
 
 const EmptyState = ({ message }) => (
   <div className="empty-state-compact">
@@ -47,7 +48,7 @@ const KpiTrend = ({ currentValue, historicalValues, dataKey }) => {
   const percentageChange = ((currentValue - previousValue) / previousValue) * 100;
 
   if (Math.abs(percentageChange) < 1) {
-      return <span className="kpi-trend neutral">Stabile</span>;
+    return <span className="kpi-trend neutral">Stabile</span>;
   }
 
   if (percentageChange > 0) {
@@ -151,7 +152,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
               <div className="agent-details">
                 <div className="detail-item">
                   <User size={16} />
-                  <span>{agent.sm}</span>
+                  <span>{agent.sm ? formatAgentName(agent.sm) : ''}</span>
                 </div>
                 <div className="detail-item">
                   <MapPin size={16} />
