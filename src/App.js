@@ -11,6 +11,7 @@ import ConfirmationDialog from './components/ConfirmationDialog';
 import ModernAgentsPage from './components/ModernAgentsPage'; // Importa la nuova pagina agenti
 import ModernSMRanking from './components/ModernSMRanking'; // Importa la nuova pagina classifica SM
 import ModernProductsAnalysis from './components/ModernProductsAnalysis'; // Importa la nuova pagina prodotti
+import ModernNewClientsPage from './components/ModernNewClientsPage'; // Importa la nuova pagina clienti
 import TestPage from './components/TestPage'; // Importa il componente TestPage
 import ModernDashboard from './components/ModernDashboard'; // Importa la nuova dashboard
 import ModernSidebar from './components/ModernSidebar';
@@ -616,7 +617,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'products':
         return <ModernProductsAnalysis />;
       case 'new-clients':
-        return <div className="section-placeholder">🆕 Nuovi Clienti - Disponibile dopo caricamento componenti avanzati</div>;
+        return <ModernNewClientsPage />;
       case 'fastweb':
         return <div className="section-placeholder">⚡ Contratti Fastweb - Disponibile dopo caricamento componenti avanzati</div>;
       case 'test':
