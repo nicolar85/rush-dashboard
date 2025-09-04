@@ -55,14 +55,14 @@ const AgentCard = ({ agent, onClick }) => {
       <div className="card-body-modern">
         <div className="stats-grid-modern">
           <Stat
-            icon={<DollarSign size={20} />}
-            label="Fatturato"
-            value={formatCurrency(agent.fatturato?.complessivo || 0)}
-          />
-          <Stat
             icon={<TrendingUp size={20} />}
             label="Rush"
             value={formatCurrency(agent.fatturatoRush || 0)}
+          />
+          <Stat
+            icon={<DollarSign size={20} />}
+            label="Fatturato"
+            value={formatCurrency(agent.fatturato?.complessivo || 0)}
           />
           <Stat
             icon={<Award size={20} />}

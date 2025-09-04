@@ -1,16 +1,13 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { User, TrendingUp, DollarSign, Award, Phone, Smartphone, Globe, Shield, X, Calendar, MapPin, Zap, Package } from 'lucide-react';
+import { User, TrendingUp, DollarSign, Award, Phone, Smartphone, Globe, Shield, X, Calendar, MapPin, Zap, Package, ChevronDown, BarChart3 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../utils/excelParser';
 
 const EmptyState = ({ message }) => (
-  <div className="empty-state">
-    <div className="empty-state-icon">
-      <Package size={48} />
-    </div>
-    <p className="empty-state-message">{message}</p>
-    <p className="empty-state-hint">I dati verranno visualizzati quando saranno disponibili</p>
+  <div className="empty-state-compact">
+    <Package size={32} className="empty-icon" />
+    <p className="empty-message">{message}</p>
   </div>
 );
 
@@ -61,6 +58,12 @@ const KpiTrend = ({ currentValue, historicalValues, dataKey }) => {
 };
 
 const AgentModal = ({ agent, allData, onClose }) => {
+  const [activeSection, setActiveSection] = useState(null);
+
+  const toggleSection = (sectionId) => {
+    setActiveSection(activeSection === sectionId ? null : sectionId);
+  };
+
   useEffect(() => {
     const handleEsc = (event) => {
       if (event.keyCode === 27) onClose();
@@ -127,9 +130,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
         ].filter(val => val && val > 0).length;
 
       case 'energia':
-        return [
-          agent.fastwebEnergia
-        ].filter(val => val && val > 0).length;
+        return [agent.fastwebEnergia].filter(val => val && val > 0).length;
 
       default:
         return 0;
@@ -170,17 +171,6 @@ const AgentModal = ({ agent, allData, onClose }) => {
 
         {/* KPI Cards */}
         <div className="kpi-section">
-          <div className="kpi-card primary">
-            <div className="kpi-icon">
-              <DollarSign size={28} />
-            </div>
-            <div className="kpi-content">
-              <span className="kpi-label">Fatturato Complessivo</span>
-              <span className="kpi-value">{formatCurrency(agent.fatturato?.complessivo || 0)}</span>
-              <KpiTrend currentValue={agent.fatturato?.complessivo || 0} historicalValues={historicalData} dataKey="fatturato" />
-            </div>
-          </div>
-
           <div className="kpi-card accent">
             <div className="kpi-icon">
               <TrendingUp size={28} />
@@ -189,6 +179,17 @@ const AgentModal = ({ agent, allData, onClose }) => {
               <span className="kpi-label">Fatturato Rush</span>
               <span className="kpi-value">{formatCurrency(agent.fatturatoRush || 0)}</span>
               <KpiTrend currentValue={agent.fatturatoRush || 0} historicalValues={historicalData} dataKey="rush" />
+            </div>
+          </div>
+
+          <div className="kpi-card primary">
+            <div className="kpi-icon">
+              <DollarSign size={28} />
+            </div>
+            <div className="kpi-content">
+              <span className="kpi-label">Fatturato Complessivo</span>
+              <span className="kpi-value">{formatCurrency(agent.fatturato?.complessivo || 0)}</span>
+              <KpiTrend currentValue={agent.fatturato?.complessivo || 0} historicalValues={historicalData} dataKey="fatturato" />
             </div>
           </div>
 
@@ -224,8 +225,8 @@ const AgentModal = ({ agent, allData, onClose }) => {
               <LineChart data={historicalData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="name" stroke="#64748b" />
-                <YAxis yAxisId="left" stroke="#3b82f6" />
-                <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
+                <YAxis yAxisId="left" stroke="#10b981" />
+                <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#ffffff',
@@ -238,120 +239,171 @@ const AgentModal = ({ agent, allData, onClose }) => {
                 <Line
                   yAxisId="left"
                   type="monotone"
-                  dataKey="fatturato"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                  name="Fatturato Totale"
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
                   dataKey="rush"
                   stroke="#10b981"
                   strokeWidth={3}
                   name="Fatturato Rush"
                   dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
                 />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="fatturato"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  name="Fatturato Totale"
+                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Dettagli Performance in Tab */}
-        <div className="tabs-section">
-          <div className="tab-container">
-            <input type="radio" id="tab1" name="tabs" defaultChecked />
-            <label htmlFor="tab1" className="tab-label">
-              <DollarSign size={16} />
-              Dettaglio Fatturati
-              <span className="tab-count">{getProductCount('fatturati')}</span>
-            </label>
+        {/* Accordion Section */}
+        <div className="accordion-section">
+          <h3 className="section-title">
+            <BarChart3 size={20} />
+            Dettaglio Performance Prodotti
+          </h3>
 
-            <input type="radio" id="tab2" name="tabs" />
-            <label htmlFor="tab2" className="tab-label">
-              <Globe size={16} />
-              Servizi Digitali
-              <span className="tab-count">{getProductCount('digitali')}</span>
-            </label>
-
-            <input type="radio" id="tab3" name="tabs" />
-            <label htmlFor="tab3" className="tab-label">
-              <Phone size={16} />
-              Telefonia
-              <span className="tab-count">{getProductCount('telefonia')}</span>
-            </label>
-
-            <input type="radio" id="tab4" name="tabs" />
-            <label htmlFor="tab4" className="tab-label">
-              <Zap size={16} />
-              Energia
-              <span className="tab-count">{getProductCount('energia')}</span>
-            </label>
-
-            {/* Tab Content 1 - Fatturati */}
-            <div className="tab-content" id="content1">
-              <div className="stats-grid-modern">
-                <StatItem label="Fatturato Voce" value={agent.fatturatoVoce} isCurrency icon={Phone} />
-                <StatItem label="Fatturato Dati" value={agent.fatturatoDati} isCurrency icon={Globe} />
-                <StatItem label="Fatturato Easy Rent" value={agent.fatturatoEasyRent} isCurrency icon={Smartphone} />
-                <StatItem label="Fatturato OU" value={agent.fatturatoOu} isCurrency icon={DollarSign} />
-                <StatItem label="Fatturato OA" value={agent.fatturatoOa} isCurrency icon={DollarSign} />
-                <StatItem label="Fatturato Easy Deal" value={agent.fatturatoEasyDeal} isCurrency icon={Award} />
-                <StatItem label="Fatturato Servizi Digitali" value={agent.fatturatoServiziDigitali} isCurrency icon={Shield} />
-                <StatItem label="Fatturato Altro" value={agent.fatturatoAltro} isCurrency icon={DollarSign} />
-                <StatItem label="Fatturato Custom" value={agent.fatturatoCustom} isCurrency icon={DollarSign} />
-                <StatItem label="Fatturato SDM" value={agent.fatturatoSdm} isCurrency icon={Shield} />
-                <StatItem label="Fatturato SSC" value={agent.fatturatoSsc} isCurrency icon={Globe} />
-                <StatItem label="Fatturato Your Backup" value={agent.fatturatoYourBackup} isCurrency icon={Shield} />
-                <StatItem label="Fatturato Cloud NAS" value={agent.fatturatoCloudNas} isCurrency icon={Globe} />
-                <StatItem label="Fatturato Easy GDPR" value={agent.fatturatoEasyGdpr} isCurrency icon={Shield} />
-                <StatItem label="Fatturato MIIA" value={agent.fatturatoMiia} isCurrency icon={Shield} />
-                <StatItem label="Fatturato Nuovo Cliente" value={agent.fatturatoNuovoCliente} isCurrency icon={User} />
+          {/* Accordion Item 1 - Fatturati */}
+          <div className="accordion-item">
+            <button
+              className={`accordion-header ${activeSection === 'fatturati' ? 'active' : ''}`}
+              onClick={() => toggleSection('fatturati')}
+            >
+              <div className="accordion-title">
+                <DollarSign size={18} />
+                <span>Dettaglio Fatturati</span>
               </div>
-              {getProductCount('fatturati') === 0 && <EmptyState message="Nessun dato fatturato disponibile" />}
-            </div>
-
-            {/* Tab Content 2 - Servizi Digitali */}
-            <div className="tab-content" id="content2">
-              <div className="stats-grid-modern">
-                <StatItem label="SDM" value={agent.sdm} icon={Shield} />
-                <StatItem label="SSC" value={agent.ssc} icon={Globe} />
-                <StatItem label="Your Backup" value={agent.yourBackup} icon={Shield} />
-                <StatItem label="Cloud NAS" value={agent.cloudNas} icon={Globe} />
-                <StatItem label="MIIA" value={agent.miia} icon={Shield} />
-                <StatItem label="Easy GDPR" value={agent.easyGdpr} icon={Shield} />
+              <div className="accordion-meta">
+                <span className="count-badge">{getProductCount('fatturati')}</span>
+                <ChevronDown size={16} className={`chevron ${activeSection === 'fatturati' ? 'rotated' : ''}`} />
               </div>
-              {getProductCount('digitali') === 0 && <EmptyState message="Nessun servizio digitale attivo" />}
-            </div>
-
-            {/* Tab Content 3 - Telefonia */}
-            <div className="tab-content" id="content3">
-              <div className="stats-grid-modern">
-                <StatItem label="ADSL" value={agent.adsl} icon={Globe} />
-                <StatItem label="Link OU" value={agent.linkOu} icon={Phone} />
-                <StatItem label="Link OA" value={agent.linkOa} icon={Phone} />
-                <StatItem label="SIM Voce" value={agent.simVoce} icon={Phone} />
-                <StatItem label="SIM Dati" value={agent.simDati} icon={Smartphone} />
-                <StatItem label="MNP" value={agent.mnp} icon={Smartphone} />
-                <StatItem label="Easy Rent" value={agent.easyRent} icon={Award} />
-                <StatItem label="Link OA Start" value={agent.linkOaStart} icon={Phone} />
-                <StatItem label="Interni OA" value={agent.interniOa} icon={Phone} />
+            </button>
+            {activeSection === 'fatturati' && (
+              <div className="accordion-content">
+                {getProductCount('fatturati') > 0 ? (
+                  <div className="stats-grid-compact">
+                    <StatItem label="Fatturato Voce" value={agent.fatturatoVoce} isCurrency icon={Phone} />
+                    <StatItem label="Fatturato Dati" value={agent.fatturatoDati} isCurrency icon={Globe} />
+                    <StatItem label="Fatturato Easy Rent" value={agent.fatturatoEasyRent} isCurrency icon={Smartphone} />
+                    <StatItem label="Fatturato OU" value={agent.fatturatoOu} isCurrency icon={DollarSign} />
+                    <StatItem label="Fatturato OA" value={agent.fatturatoOa} isCurrency icon={DollarSign} />
+                    <StatItem label="Fatturato Easy Deal" value={agent.fatturatoEasyDeal} isCurrency icon={Award} />
+                    <StatItem label="Fatturato Servizi Digitali" value={agent.fatturatoServiziDigitali} isCurrency icon={Shield} />
+                    <StatItem label="Fatturato Altro" value={agent.fatturatoAltro} isCurrency icon={DollarSign} />
+                    <StatItem label="Fatturato Custom" value={agent.fatturatoCustom} isCurrency icon={DollarSign} />
+                    <StatItem label="Fatturato SDM" value={agent.fatturatoSdm} isCurrency icon={Shield} />
+                    <StatItem label="Fatturato SSC" value={agent.fatturatoSsc} isCurrency icon={Globe} />
+                    <StatItem label="Fatturato Your Backup" value={agent.fatturatoYourBackup} isCurrency icon={Shield} />
+                    <StatItem label="Fatturato Cloud NAS" value={agent.fatturatoCloudNas} isCurrency icon={Globe} />
+                    <StatItem label="Fatturato Easy GDPR" value={agent.fatturatoEasyGdpr} isCurrency icon={Shield} />
+                    <StatItem label="Fatturato MIIA" value={agent.fatturatoMiia} isCurrency icon={Shield} />
+                    <StatItem label="Fatturato Nuovo Cliente" value={agent.fatturatoNuovoCliente} isCurrency icon={User} />
+                  </div>
+                ) : (
+                  <EmptyState message="Nessun dato fatturato disponibile" />
+                )}
               </div>
-              {getProductCount('telefonia') === 0 && <EmptyState message="Nessun contratto telefonico attivo" />}
-            </div>
+            )}
+          </div>
 
-            {/* Tab Content 4 - Energia (NUOVA SCHEDA) */}
-            <div className="tab-content" id="content4">
-              <div className="stats-grid-modern">
-                <StatItem label="Fastweb Energia" value={agent.fastwebEnergia} icon={Zap} />
-                {/* Qui potrai aggiungere altri contratti energia in futuro */}
-                <StatItem label="Contratti Luce" value={agent.contrattiLuce || 0} icon={Zap} />
-                <StatItem label="Contratti Gas" value={agent.contrattiGas || 0} icon={Zap} />
-                <StatItem label="Fatturato Energia" value={agent.fatturatoEnergia || 0} isCurrency icon={Zap} />
+          {/* Accordion Item 2 - Servizi Digitali */}
+          <div className="accordion-item">
+            <button
+              className={`accordion-header ${activeSection === 'digitali' ? 'active' : ''}`}
+              onClick={() => toggleSection('digitali')}
+            >
+              <div className="accordion-title">
+                <Shield size={18} />
+                <span>Servizi Digitali</span>
               </div>
-              {getProductCount('energia') === 0 && <EmptyState message="Nessun contratto energia attivo" />}
-            </div>
+              <div className="accordion-meta">
+                <span className="count-badge">{getProductCount('digitali')}</span>
+                <ChevronDown size={16} className={`chevron ${activeSection === 'digitali' ? 'rotated' : ''}`} />
+              </div>
+            </button>
+            {activeSection === 'digitali' && (
+              <div className="accordion-content">
+                {getProductCount('digitali') > 0 ? (
+                  <div className="stats-grid-compact">
+                    <StatItem label="SDM" value={agent.sdm} icon={Shield} />
+                    <StatItem label="SSC" value={agent.ssc} icon={Globe} />
+                    <StatItem label="Your Backup" value={agent.yourBackup} icon={Shield} />
+                    <StatItem label="Cloud NAS" value={agent.cloudNas} icon={Globe} />
+                    <StatItem label="MIIA" value={agent.miia} icon={Shield} />
+                    <StatItem label="Easy GDPR" value={agent.easyGdpr} icon={Shield} />
+                  </div>
+                ) : (
+                  <EmptyState message="Nessun servizio digitale attivo" />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Accordion Item 3 - Telefonia */}
+          <div className="accordion-item">
+            <button
+              className={`accordion-header ${activeSection === 'telefonia' ? 'active' : ''}`}
+              onClick={() => toggleSection('telefonia')}
+            >
+              <div className="accordion-title">
+                <Phone size={18} />
+                <span>Telefonia</span>
+              </div>
+              <div className="accordion-meta">
+                <span className="count-badge">{getProductCount('telefonia')}</span>
+                <ChevronDown size={16} className={`chevron ${activeSection === 'telefonia' ? 'rotated' : ''}`} />
+              </div>
+            </button>
+            {activeSection === 'telefonia' && (
+              <div className="accordion-content">
+                {getProductCount('telefonia') > 0 ? (
+                  <div className="stats-grid-compact">
+                    <StatItem label="ADSL" value={agent.adsl} icon={Globe} />
+                    <StatItem label="Link OU" value={agent.linkOu} icon={Phone} />
+                    <StatItem label="Link OA" value={agent.linkOa} icon={Phone} />
+                    <StatItem label="SIM Voce" value={agent.simVoce} icon={Phone} />
+                    <StatItem label="SIM Dati" value={agent.simDati} icon={Smartphone} />
+                    <StatItem label="MNP" value={agent.mnp} icon={Smartphone} />
+                    <StatItem label="Easy Rent" value={agent.easyRent} icon={Award} />
+                    <StatItem label="Link OA Start" value={agent.linkOaStart} icon={Phone} />
+                    <StatItem label="Interni OA" value={agent.interniOa} icon={Phone} />
+                  </div>
+                ) : (
+                  <EmptyState message="Nessun contratto telefonico attivo" />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Accordion Item 4 - Energia */}
+          <div className="accordion-item">
+            <button
+              className={`accordion-header ${activeSection === 'energia' ? 'active' : ''}`}
+              onClick={() => toggleSection('energia')}
+            >
+              <div className="accordion-title">
+                <Zap size={18} />
+                <span>Energia</span>
+              </div>
+              <div className="accordion-meta">
+                <span className="count-badge">{getProductCount('energia')}</span>
+                <ChevronDown size={16} className={`chevron ${activeSection === 'energia' ? 'rotated' : ''}`} />
+              </div>
+            </button>
+            {activeSection === 'energia' && (
+              <div className="accordion-content">
+                {getProductCount('energia') > 0 ? (
+                  <div className="stats-grid-compact">
+                    <StatItem label="Fastweb Energia" value={agent.fastwebEnergia} icon={Zap} />
+                  </div>
+                ) : (
+                  <EmptyState message="Nessun contratto energia attivo" />
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -568,11 +620,13 @@ const AgentModal = ({ agent, allData, onClose }) => {
         .section-title {
           display: flex;
           align-items: center;
-          gap: 12px;
-          font-size: 1.5rem;
+          gap: 8px;
+          font-size: 18px;
           font-weight: 600;
           color: #1e293b;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
+          padding-bottom: 12px;
+          border-bottom: 2px solid #f1f5f9;
         }
 
         .chart-container-modern {
@@ -583,125 +637,127 @@ const AgentModal = ({ agent, allData, onClose }) => {
           border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
-        .tabs-section {
-          padding: 0 32px 32px;
-        }
-
-        .tab-container {
+        .accordion-section {
+          padding: 24px;
           background: white;
           border-radius: 16px;
+          margin: 16px 0;
+          border: 1px solid #e2e8f0;
+        }
+
+        .accordion-item {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          margin-bottom: 8px;
           overflow: hidden;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-          position: relative;
+          transition: all 0.2s ease;
         }
 
-        .tab-container::before {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #e2e8f0, #cbd5e1, #e2e8f0);
-          border-radius: 1px;
+        .accordion-item:hover {
+          border-color: #cbd5e1;
         }
 
-        .tab-container input[type="radio"] {
-          display: none;
+        .accordion-header {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 15px;
+          font-weight: 500;
         }
 
-        .tab-label {
-          position: relative;
+        .accordion-header:hover {
+          background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        }
+
+        .accordion-header.active {
+          background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+          color: #1d4ed8;
+        }
+
+        .accordion-title {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 16px 24px;
-          cursor: pointer;
-          border-bottom: 3px solid transparent;
-          font-weight: 500;
-          color: #64748b;
-          transition: all 0.2s ease;
-          background: #f8fafc;
+          gap: 10px;
         }
 
-        .tab-label:hover {
-          color: #3b82f6;
-          background: #f1f5f9;
+        .accordion-meta {
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
 
-        .tab-container input[type="radio"]:checked + .tab-label {
-          color: #3b82f6;
-          border-bottom-color: #3b82f6;
-          background: white;
-        }
-
-        .tab-content {
-          display: none;
-          padding: 32px;
-          background: white;
-          animation: fadeIn 0.3s ease-in-out;
-        }
-
-        .tab-container input[type="radio"]:checked + .tab-label + .tab-content,
-        .tab-container input[type="radio"]:checked + .tab-label + * + .tab-content,
-        .tab-container input[type="radio"]:checked + .tab-label + * + * + .tab-content {
-          display: block;
-        }
-
-        #tab1:checked ~ #content1,
-        #tab2:checked ~ #content2,
-        #tab3:checked ~ #content3,
-        #tab4:checked ~ #content4 {
-          display: block;
-        }
-
-        .tab-count {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
+        .count-badge {
+          background: rgba(59, 130, 246, 0.1);
+          color: #1d4ed8;
           font-size: 12px;
-          padding: 2px 6px;
-          border-radius: 10px;
-          min-width: 18px;
+          font-weight: 600;
+          padding: 4px 8px;
+          border-radius: 8px;
+          min-width: 24px;
           text-align: center;
-          font-weight: 500;
         }
 
-        input[type="radio"]:checked + .tab-label .tab-count {
-          background: rgba(255, 255, 255, 0.3);
+        .accordion-header.active .count-badge {
+          background: rgba(255, 255, 255, 0.8);
+          color: #1d4ed8;
         }
 
-        .empty-state {
+        .chevron {
+          transition: transform 0.2s ease;
+          color: #64748b;
+        }
+
+        .chevron.rotated {
+          transform: rotate(180deg);
+        }
+
+        .accordion-content {
+          padding: 20px;
+          background: white;
+          border-top: 1px solid #e2e8f0;
+          animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .stats-grid-compact {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+        }
+
+        .empty-state-compact {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
-          padding: 60px 20px;
-          text-align: center;
+          padding: 32px 16px;
           color: #64748b;
+          text-align: center;
         }
 
-        .empty-state-icon {
-          margin-bottom: 16px;
-          opacity: 0.5;
-        }
-
-        .empty-state-message {
-          font-size: 18px;
-          font-weight: 500;
+        .empty-icon {
+          opacity: 0.4;
           margin-bottom: 8px;
-          color: #475569;
         }
 
-        .empty-state-hint {
+        .empty-message {
           font-size: 14px;
-          opacity: 0.7;
-        }
-
-        .stats-grid-modern {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 16px;
-          min-height: 200px;
+          opacity: 0.8;
         }
 
         .modern-stat-item {
@@ -803,6 +859,15 @@ const AgentModal = ({ agent, allData, onClose }) => {
             padding: 24px;
           }
 
+          .accordion-header {
+            padding: 14px 16px;
+            font-size: 14px;
+          }
+
+          .accordion-content {
+            padding: 16px;
+          }
+
           .agent-profile {
             flex-direction: column;
             text-align: center;
@@ -817,7 +882,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
             justify-content: center;
           }
 
-          .stats-grid-modern {
+          .stats-grid-compact {
             grid-template-columns: 1fr;
           }
         }
