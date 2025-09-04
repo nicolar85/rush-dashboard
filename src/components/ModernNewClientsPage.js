@@ -168,7 +168,7 @@ const ModernNewClientsPage = () => {
                     <div className="stat-card primary"><div className="stat-icon"><Handshake size={24} /></div><div className="stat-content"><span className="stat-value">{formatNumber(stats.totalClients)}</span><span className="stat-label">Clienti Acquisiti</span></div></div>
                     <div className="stat-card success"><div className="stat-icon"><DollarSign size={24} /></div><div className="stat-content"><span className="stat-value">{formatCurrency(stats.totalRevenue)}</span><span className="stat-label">Fatturato da Nuovi Clienti</span></div></div>
                     <div className="stat-card accent"><div className="stat-icon"><BarChart size={24} /></div><div className="stat-content"><span className="stat-value">{stats.avgClientsPerAgent.toFixed(1)}</span><span className="stat-label">Media Clienti / Agente</span></div></div>
-                    <div className="stat-card info"><div className="stat-icon"><Building size={24} /></div><div className="stat-content"><span className="stat-value">{stats.topSm.name}</span><span className="stat-label">Top Coordinatore ({formatNumber(stats.topSm.clients)} clienti)</span></div></div>
+                    <div className="stat-card info"><div className="stat-icon"><Building size={24} /></div><div className="stat-content"><span className="stat-value">{formatAgentName(stats.topSm.name)}</span><span className="stat-label">Top Coordinatore ({formatNumber(stats.topSm.clients)} clienti)</span></div></div>
                 </div>
             </div>
 
