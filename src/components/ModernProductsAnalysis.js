@@ -201,38 +201,6 @@ const ModernProductsAnalysis = () => {
     };
   }, [filteredProducts]);
 
-  const filteredProductsArray = useMemo(() => {
-    return Object.entries(filteredProducts).map(([name, productData]) => ({
-      name,
-      ...productData
-    }));
-  }, [filteredProducts]);
-
-  // Preparazione dati per i grafici
-  const chartData = useMemo(() => {
-    if (!filteredProductsArray || filteredProductsArray.length === 0) return [];
-
-    return filteredProductsArray.map(product => ({
-      name: getProductDisplayName(product.name),
-      value: chartMetric === 'fatturato' ? product.fatturato :
-            chartMetric === 'volume' ? product.volume :
-            product.agents
-    })).sort((a, b) => b.value - a.value);
-  }, [filteredProductsArray, chartMetric]);
-
-  // Top products per le cards
-  const topProducts = useMemo(() => {
-    return [...(filteredProductsArray || [])].sort((a, b) => {
-      const aValue = chartMetric === 'fatturato' ? a.fatturato :
-                    chartMetric === 'volume' ? a.volume :
-                    a.agents;
-      const bValue = chartMetric === 'fatturato' ? b.fatturato :
-                    chartMetric === 'volume' ? b.volume :
-                    b.agents;
-      return bValue - aValue;
-    });
-  }, [filteredProductsArray, chartMetric]);
-
   // Helper function per ottenere l'icona del prodotto
   const getProductIcon = (productName) => {
     const iconMap = {
@@ -279,6 +247,38 @@ const ModernProductsAnalysis = () => {
     };
     return nameMap[productName] || productName;
   };
+
+  const filteredProductsArray = useMemo(() => {
+    return Object.entries(filteredProducts).map(([name, productData]) => ({
+      name,
+      ...productData
+    }));
+  }, [filteredProducts]);
+
+  // Preparazione dati per i grafici
+  const chartData = useMemo(() => {
+    if (!filteredProductsArray || filteredProductsArray.length === 0) return [];
+
+    return filteredProductsArray.map(product => ({
+      name: getProductDisplayName(product.name),
+      value: chartMetric === 'fatturato' ? product.fatturato :
+            chartMetric === 'volume' ? product.volume :
+            product.agents
+    })).sort((a, b) => b.value - a.value);
+  }, [filteredProductsArray, chartMetric]);
+
+  // Top products per le cards
+  const topProducts = useMemo(() => {
+    return [...(filteredProductsArray || [])].sort((a, b) => {
+      const aValue = chartMetric === 'fatturato' ? a.fatturato :
+                    chartMetric === 'volume' ? a.volume :
+                    a.agents;
+      const bValue = chartMetric === 'fatturato' ? b.fatturato :
+                    chartMetric === 'volume' ? b.volume :
+                    b.agents;
+      return bValue - aValue;
+    });
+  }, [filteredProductsArray, chartMetric]);
 
   const getTrendColor = (trend) => {
     if (trend > 5) return 'text-green-600';
