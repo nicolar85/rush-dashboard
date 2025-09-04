@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  BarChart3, Users, Trophy, Package, UserPlus, Zap, Upload,
+  BarChart3, Users, Trophy, Package, UserPlus, Zap, Upload, History,
   LogOut, Moon, Sun, X, User, TrendingUp
 } from 'lucide-react';
 
@@ -15,6 +15,7 @@ const ModernSidebar = ({
     { id: 'products', label: 'Prodotti', icon: Package, color: 'from-purple-500 to-purple-600', description: 'Analisi prodotti' },
     { id: 'new-clients', label: 'Nuovi Clienti', icon: UserPlus, color: 'from-pink-500 to-pink-600', description: 'Dashboard clienti' },
     { id: 'fastweb', label: 'Fastweb', icon: Zap, color: 'from-orange-500 to-orange-600', description: 'Contratti Fastweb' },
+    { id: 'historical-analysis', label: 'Analisi Storia', icon: History, color: 'from-teal-500 to-teal-600', description: 'Analisi storica dei dati' },
     { id: 'files', label: 'Gestione File', icon: Upload, color: 'from-indigo-500 to-indigo-600', description: 'Upload e gestione' }
   ];
 
