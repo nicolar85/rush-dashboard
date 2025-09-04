@@ -516,7 +516,7 @@ const ModernProductsAnalysis = () => {
                     <tr key={productKey} className="product-row">
                       <td className="product-cell">
                         <div className="product-info-table">
-                          <div className={`product-icon-small bg-gradient-to-br ${getProductColor(productKey)}`}>
+                        <div className="product-icon-small" style={{ background: getProductColor(productKey) }}>
                             <Icon size={16} className="text-white" />
                           </div>
                           <span className="product-name-table">
