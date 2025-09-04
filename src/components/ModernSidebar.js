@@ -15,12 +15,12 @@ const ModernSidebar = ({
     { id: 'products', label: 'Prodotti', icon: Package, color: 'from-purple-500 to-purple-600', description: 'Analisi prodotti' },
     { id: 'new-clients', label: 'Nuovi Clienti', icon: UserPlus, color: 'from-pink-500 to-pink-600', description: 'Dashboard clienti' },
     { id: 'fastweb', label: 'Fastweb', icon: Zap, color: 'from-orange-500 to-orange-600', description: 'Contratti Fastweb' },
-    { id: 'historical-analysis', label: 'Analisi Storia', icon: History, color: 'from-purple-500 to-purple-600', description: 'Analisi storica dei dati' },
-    { id: 'files', label: 'Gestione File', icon: Upload, color: 'from-indigo-500 to-indigo-600', description: 'Upload e gestione' }
+    { id: 'historical-analysis', label: 'Analisi Storica', icon: History, color: 'from-purple-500 to-purple-600', description: 'Analisi storica dei dati' },
   ];
 
-  const adminMenuItems = [
-    { id: 'settings', label: 'Impostazioni', icon: Settings, color: 'from-purple-500 to-purple-600', description: 'Gestione utenti' }
+  const settingsMenuItems = [
+    { id: 'files', label: 'Gestione File', icon: Upload, color: 'from-indigo-500 to-indigo-600', description: 'Upload e gestione' },
+    { id: 'settings', label: 'Gestione Utenti', icon: Settings, color: 'from-purple-500 to-purple-600', description: 'Gestisci gli utenti' }
   ];
 
   const handleItemClick = (itemId) => {
@@ -99,7 +99,7 @@ const ModernSidebar = ({
           {currentUser?.role === 'admin' && (
             <div className="nav-section">
               <span className="section-title">Impostazioni</span>
-              {adminMenuItems.map((item) => {
+              {settingsMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.id;
                 return (
