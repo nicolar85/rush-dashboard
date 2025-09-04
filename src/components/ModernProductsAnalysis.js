@@ -26,7 +26,7 @@ import {
 import {
   Package, Smartphone, Globe, Zap, Phone, Award,
   TrendingUp, BarChart3, PieChart, Users, Target,
-  Filter, ArrowUpRight, ArrowDownRight,
+  Filter,
   Wifi, Shield, Star, Activity
 } from 'lucide-react';
 
@@ -59,7 +59,7 @@ const ModernProductsAnalysis = () => {
   ];
 
   // Definizione categorie prodotti con icone e colori
-  const productCategories = {
+  const productCategories = useMemo(() => ({
     'mobile': {
       name: 'Telefonia Mobile',
       icon: Smartphone,
@@ -90,7 +90,7 @@ const ModernProductsAnalysis = () => {
       color: 'from-pink-500 to-pink-600',
       products: ['station']
     }
-  };
+  }), []);
 
   // Processamento dati prodotti
   const productsData = useMemo(() => {
