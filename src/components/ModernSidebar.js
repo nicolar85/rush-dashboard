@@ -20,7 +20,7 @@ const ModernSidebar = ({
   ];
 
   const adminMenuItems = [
-    { id: 'settings', label: 'Impostazioni', icon: Settings, color: 'from-gray-500 to-gray-600', description: 'Gestione utenti' }
+    { id: 'settings', label: 'Impostazioni', icon: Settings, color: 'from-slate-500 to-slate-600', description: 'Gestione utenti' }
   ];
 
   const handleItemClick = (itemId) => {
