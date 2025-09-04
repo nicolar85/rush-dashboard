@@ -1,8 +1,18 @@
 import React, { useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { User, TrendingUp, DollarSign, Award, Phone, Smartphone, Globe, Shield, X, Calendar, MapPin } from 'lucide-react';
+import { User, TrendingUp, DollarSign, Award, Phone, Smartphone, Globe, Shield, X, Calendar, MapPin, Zap, Package } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../utils/excelParser';
+
+const EmptyState = ({ message }) => (
+  <div className="empty-state">
+    <div className="empty-state-icon">
+      <Package size={48} />
+    </div>
+    <p className="empty-state-message">{message}</p>
+    <p className="empty-state-hint">I dati verranno visualizzati quando saranno disponibili</p>
+  </div>
+);
 
 const StatItem = ({ label, value, isCurrency = false, icon: Icon }) => {
   const formattedValue = isCurrency ? formatCurrency(value || 0) : formatNumber(value || 0);
@@ -89,6 +99,41 @@ const AgentModal = ({ agent, allData, onClose }) => {
     ];
     const index = (name || '').length % colors.length;
     return colors[index];
+  };
+
+  const getProductCount = (category) => {
+    switch (category) {
+      case 'fatturati':
+        return [
+          agent.fatturatoVoce, agent.fatturatoDati, agent.fatturatoEasyRent,
+          agent.fatturatoOu, agent.fatturatoOa, agent.fatturatoEasyDeal,
+          agent.fatturatoServiziDigitali, agent.fatturatoAltro, agent.fatturatoCustom,
+          agent.fatturatoSdm, agent.fatturatoSsc, agent.fatturatoYourBackup,
+          agent.fatturatoCloudNas, agent.fatturatoEasyGdpr, agent.fatturatoMiia,
+          agent.fatturatoNuovoCliente
+        ].filter(val => val && val > 0).length;
+
+      case 'digitali':
+        return [
+          agent.sdm, agent.ssc, agent.yourBackup, agent.cloudNas,
+          agent.miia, agent.easyGdpr
+        ].filter(val => val && val > 0).length;
+
+      case 'telefonia':
+        return [
+          agent.adsl, agent.linkOu, agent.linkOa, agent.simVoce,
+          agent.simDati, agent.mnp, agent.easyRent, agent.linkOaStart,
+          agent.interniOa
+        ].filter(val => val && val > 0).length;
+
+      case 'energia':
+        return [
+          agent.fastwebEnergia
+        ].filter(val => val && val > 0).length;
+
+      default:
+        return 0;
+    }
   };
 
   return ReactDOM.createPortal(
@@ -220,18 +265,28 @@ const AgentModal = ({ agent, allData, onClose }) => {
             <label htmlFor="tab1" className="tab-label">
               <DollarSign size={16} />
               Dettaglio Fatturati
+              <span className="tab-count">{getProductCount('fatturati')}</span>
             </label>
 
             <input type="radio" id="tab2" name="tabs" />
             <label htmlFor="tab2" className="tab-label">
               <Globe size={16} />
               Servizi Digitali
+              <span className="tab-count">{getProductCount('digitali')}</span>
             </label>
 
             <input type="radio" id="tab3" name="tabs" />
             <label htmlFor="tab3" className="tab-label">
               <Phone size={16} />
               Telefonia
+              <span className="tab-count">{getProductCount('telefonia')}</span>
+            </label>
+
+            <input type="radio" id="tab4" name="tabs" />
+            <label htmlFor="tab4" className="tab-label">
+              <Zap size={16} />
+              Energia
+              <span className="tab-count">{getProductCount('energia')}</span>
             </label>
 
             {/* Tab Content 1 - Fatturati */}
@@ -254,6 +309,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
                 <StatItem label="Fatturato MIIA" value={agent.fatturatoMiia} isCurrency icon={Shield} />
                 <StatItem label="Fatturato Nuovo Cliente" value={agent.fatturatoNuovoCliente} isCurrency icon={User} />
               </div>
+              {getProductCount('fatturati') === 0 && <EmptyState message="Nessun dato fatturato disponibile" />}
             </div>
 
             {/* Tab Content 2 - Servizi Digitali */}
@@ -265,8 +321,8 @@ const AgentModal = ({ agent, allData, onClose }) => {
                 <StatItem label="Cloud NAS" value={agent.cloudNas} icon={Globe} />
                 <StatItem label="MIIA" value={agent.miia} icon={Shield} />
                 <StatItem label="Easy GDPR" value={agent.easyGdpr} icon={Shield} />
-                <StatItem label="Fastweb Energia" value={agent.fastwebEnergia} icon={Award} />
               </div>
+              {getProductCount('digitali') === 0 && <EmptyState message="Nessun servizio digitale attivo" />}
             </div>
 
             {/* Tab Content 3 - Telefonia */}
@@ -282,6 +338,19 @@ const AgentModal = ({ agent, allData, onClose }) => {
                 <StatItem label="Link OA Start" value={agent.linkOaStart} icon={Phone} />
                 <StatItem label="Interni OA" value={agent.interniOa} icon={Phone} />
               </div>
+              {getProductCount('telefonia') === 0 && <EmptyState message="Nessun contratto telefonico attivo" />}
+            </div>
+
+            {/* Tab Content 4 - Energia (NUOVA SCHEDA) */}
+            <div className="tab-content" id="content4">
+              <div className="stats-grid-modern">
+                <StatItem label="Fastweb Energia" value={agent.fastwebEnergia} icon={Zap} />
+                {/* Qui potrai aggiungere altri contratti energia in futuro */}
+                <StatItem label="Contratti Luce" value={agent.contrattiLuce || 0} icon={Zap} />
+                <StatItem label="Contratti Gas" value={agent.contrattiGas || 0} icon={Zap} />
+                <StatItem label="Fatturato Energia" value={agent.fatturatoEnergia || 0} isCurrency icon={Zap} />
+              </div>
+              {getProductCount('energia') === 0 && <EmptyState message="Nessun contratto energia attivo" />}
             </div>
           </div>
         </div>
@@ -523,6 +592,18 @@ const AgentModal = ({ agent, allData, onClose }) => {
           border-radius: 16px;
           overflow: hidden;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+          position: relative;
+        }
+
+        .tab-container::before {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, #e2e8f0, #cbd5e1, #e2e8f0);
+          border-radius: 1px;
         }
 
         .tab-container input[type="radio"] {
@@ -530,7 +611,8 @@ const AgentModal = ({ agent, allData, onClose }) => {
         }
 
         .tab-label {
-          display: inline-flex;
+          position: relative;
+          display: flex;
           align-items: center;
           gap: 8px;
           padding: 16px 24px;
@@ -557,6 +639,7 @@ const AgentModal = ({ agent, allData, onClose }) => {
           display: none;
           padding: 32px;
           background: white;
+          animation: fadeIn 0.3s ease-in-out;
         }
 
         .tab-container input[type="radio"]:checked + .tab-label + .tab-content,
@@ -567,14 +650,58 @@ const AgentModal = ({ agent, allData, onClose }) => {
 
         #tab1:checked ~ #content1,
         #tab2:checked ~ #content2,
-        #tab3:checked ~ #content3 {
+        #tab3:checked ~ #content3,
+        #tab4:checked ~ #content4 {
           display: block;
+        }
+
+        .tab-count {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          font-size: 12px;
+          padding: 2px 6px;
+          border-radius: 10px;
+          min-width: 18px;
+          text-align: center;
+          font-weight: 500;
+        }
+
+        input[type="radio"]:checked + .tab-label .tab-count {
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+          text-align: center;
+          color: #64748b;
+        }
+
+        .empty-state-icon {
+          margin-bottom: 16px;
+          opacity: 0.5;
+        }
+
+        .empty-state-message {
+          font-size: 18px;
+          font-weight: 500;
+          margin-bottom: 8px;
+          color: #475569;
+        }
+
+        .empty-state-hint {
+          font-size: 14px;
+          opacity: 0.7;
         }
 
         .stats-grid-modern {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 16px;
+          min-height: 200px;
         }
 
         .modern-stat-item {
@@ -640,8 +767,14 @@ const AgentModal = ({ agent, allData, onClose }) => {
         }
 
         @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         @keyframes slideInUp {
