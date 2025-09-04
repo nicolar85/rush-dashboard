@@ -307,9 +307,6 @@ const Login = ({ onLogin }) => {
           </button>
         </form>
         
-        <div className="modern-login-footer">
-          <small>Credenziali demo: admin / rush2025</small>
-        </div>
       </div>
     </div>
   );
