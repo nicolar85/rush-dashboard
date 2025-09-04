@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../App';
+import { formatAgentName } from '../utils/formatter';
 import './ModernProductsAnalysis.css';
 import {
   Package, Smartphone, Globe, Zap, Phone, Award,
@@ -128,7 +129,7 @@ const ModernProductsAnalysis = () => {
           volume: agentsWithProduct.reduce((sum, item) => sum + item.volume, 0),
           fatturato: agentsWithProduct.reduce((sum, item) => sum + item.fatturato, 0),
           agents: agentsWithProduct.length,
-          topAgents: agentsWithProduct.slice(0, 3).map(item => item.nome)
+          topAgents: agentsWithProduct.slice(0, 3).map(item => formatAgentName(item.nome))
         };
       }
     });

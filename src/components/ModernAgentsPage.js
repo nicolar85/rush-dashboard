@@ -68,7 +68,8 @@ const ModernAgentsPage = () => {
     const trueMaxRush = Math.max(...agentsWithId.map(a => a.fatturatoRush || 0));
 
     let filteredAgents = agentsWithId.filter(agent =>
-      agent.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) &&
+      (agent.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      (agent.originalNome && agent.originalNome.toLowerCase().includes(filters.searchTerm.toLowerCase()))) &&
       (filters.selectedSm === '' || agent.sm === filters.selectedSm) &&
       (agent.fatturatoRush || 0) >= filters.fatturatoRushRange[0] &&
       (agent.fatturatoRush || 0) <= filters.fatturatoRushRange[1]
