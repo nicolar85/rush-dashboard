@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../App';
-import { formatAgentName, formatCurrency, formatNumber } from '../utils/formatter';
+import { formatAgentName } from '../utils/formatter';
+import { formatCurrency, formatNumber } from '../utils/excelParser';
 import './ModernNewClientsPage.css';
-import { UserPlus, RefreshCw, Search, Filter, Users, ArrowUp, ArrowDown, Award, Trophy, BarChart, DollarSign, Briefcase, Target, Building, Handshake, TrendingUp } from 'lucide-react';
+import { UserPlus, RefreshCw, Search, Filter, Users, ArrowUp, ArrowDown, Trophy, BarChart, DollarSign, Briefcase, Building, Handshake, TrendingUp } from 'lucide-react';
 
 const getPerformanceLevel = (clientCount) => {
     if (clientCount >= 5) return 'high';
