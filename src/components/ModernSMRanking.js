@@ -29,48 +29,7 @@ const ModernSMRanking = () => {
   // Processa i dati degli SM dai file caricati
   const smData = useMemo(() => {
     if (!selectedFileDate || !data.uploadedFiles?.length) {
-      // Dati di esempio per la demo
-      return [
-        {
-          name: "Marco Verdi",
-          team: [
-            { nome: "Paolo Rossi", fatturatoRush: 8500, fatturato: { complessivo: 25000 }, nuovoCliente: 12 },
-            { nome: "Anna Bianchi", fatturatoRush: 6200, fatturato: { complessivo: 18000 }, nuovoCliente: 8 },
-            { nome: "Luigi Ferrari", fatturatoRush: 7300, fatturato: { complessivo: 21000 }, nuovoCliente: 10 }
-          ],
-          totalAgents: 3,
-          totalRush: 22000,
-          totalRevenue: 64000,
-          totalNewClients: 30,
-          avgRush: 7333
-        },
-        {
-          name: "Sara Blu",
-          team: [
-            { nome: "Roberto Silva", fatturatoRush: 9800, fatturato: { complessivo: 32000 }, nuovoCliente: 15 },
-            { nome: "Elena Costa", fatturatoRush: 5400, fatturato: { complessivo: 16000 }, nuovoCliente: 7 }
-          ],
-          totalAgents: 2,
-          totalRush: 15200,
-          totalRevenue: 48000,
-          totalNewClients: 22,
-          avgRush: 7600
-        },
-        {
-          name: "Andrea Rosa",
-          team: [
-            { nome: "Giulia Neri", fatturatoRush: 12000, fatturato: { complessivo: 35000 }, nuovoCliente: 18 },
-            { nome: "Federico Blu", fatturatoRush: 8900, fatturato: { complessivo: 28000 }, nuovoCliente: 14 },
-            { nome: "Chiara Verde", fatturatoRush: 7800, fatturato: { complessivo: 23000 }, nuovoCliente: 11 },
-            { nome: "Matteo Giallo", fatturatoRush: 5600, fatturato: { complessivo: 17000 }, nuovoCliente: 9 }
-          ],
-          totalAgents: 4,
-          totalRush: 34300,
-          totalRevenue: 103000,
-          totalNewClients: 52,
-          avgRush: 8575
-        }
-      ];
+      return [];
     }
 
     const file = data.uploadedFiles.find(f => f.date === selectedFileDate);

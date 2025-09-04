@@ -64,16 +64,7 @@ const ModernProductsAnalysis = () => {
   // Processamento dati prodotti
   const productsData = useMemo(() => {
     if (!selectedFileDate || !data.uploadedFiles?.length) {
-      // Dati di esempio per la demo
-      return {
-        simVoce: { volume: 250, fatturato: 125000, trend: 8.5, topAgents: ['Marco Rossi', 'Anna Bianchi', 'Luigi Ferrari'] },
-        simDati: { volume: 180, fatturato: 360000, trend: 12.3, topAgents: ['Sara Blu', 'Paolo Verde', 'Elena Rosa'] },
-        adsl: { volume: 95, fatturato: 190000, trend: -2.1, topAgents: ['Roberto Silva', 'Giulia Neri', 'Federico Blu'] },
-        fibra: { volume: 120, fatturato: 480000, trend: 15.7, topAgents: ['Chiara Verde', 'Matteo Giallo', 'Sofia Marino'] },
-        fastwebEnergia: { volume: 85, fatturato: 170000, trend: 22.8, topAgents: ['Andrea Rosa', 'Laura Costa', 'Diego Viola'] },
-        sdm: { volume: 45, fatturato: 90000, trend: 5.2, topAgents: ['Marco Verdi', 'Elena Blu', 'Luca Rosso'] },
-        cloudNas: { volume: 35, fatturato: 105000, trend: 18.4, topAgents: ['Anna Gialla', 'Pietro Nero', 'Carla Bianca'] }
-      };
+      return {};
     }
 
     const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
@@ -100,13 +91,33 @@ const ModernProductsAnalysis = () => {
       station: 'Station'
     };
 
+    const revenueKeyMapping = {
+      simVoce: 'fatturatoVoce',
+      simDati: 'fatturatoDati',
+      easyRent: 'fatturatoEasyRent',
+      linkOu: 'fatturatoOu',
+      linkOa: 'fatturatoOa',
+      easyDeal: 'fatturatoEasyDeal',
+      altro: 'fatturatoAltro',
+      serviziDigitali: 'fatturatoServiziDigitali',
+      custom: 'fatturatoCustom',
+      sdm: 'fatturatoSdm',
+      ssc: 'fatturatoSsc',
+      yourBackup: 'fatturatoYourBackup',
+      cloudNas: 'fatturatoCloudNas',
+      easyGdpr: 'fatturatoEasyGdpr',
+      miia: 'fatturatoMiia',
+      nuovoCliente: 'fatturatoNuovoCliente'
+    };
+
     // Aggrega dati per prodotto
     Object.keys(productMapping).forEach(key => {
+      const revenueKey = revenueKeyMapping[key] || `fatturato${key.charAt(0).toUpperCase() + key.slice(1)}`;
       const agentsWithProduct = file.data.agents
         .map(agent => ({
           nome: agent.nome,
           volume: agent[key] || 0,
-          fatturato: agent[`fatturato${key.charAt(0).toUpperCase() + key.slice(1)}`] || 0
+          fatturato: agent[revenueKey] || 0
         }))
         .filter(item => item.volume > 0)
         .sort((a, b) => b.volume - a.volume);
@@ -117,8 +128,7 @@ const ModernProductsAnalysis = () => {
           volume: agentsWithProduct.reduce((sum, item) => sum + item.volume, 0),
           fatturato: agentsWithProduct.reduce((sum, item) => sum + item.fatturato, 0),
           agents: agentsWithProduct.length,
-          topAgents: agentsWithProduct.slice(0, 3).map(item => item.nome),
-          trend: Math.random() * 20 - 5 // Simulato per ora
+          topAgents: agentsWithProduct.slice(0, 3).map(item => item.nome)
         };
       }
     });
@@ -143,7 +153,6 @@ const ModernProductsAnalysis = () => {
       switch (sortBy) {
         case 'volume': return b.volume - a.volume;
         case 'fatturato': return b.fatturato - a.fatturato;
-        case 'trend': return b.trend - a.trend;
         case 'agents': return b.agents - a.agents;
         default: return 0;
       }
@@ -156,8 +165,7 @@ const ModernProductsAnalysis = () => {
     return {
       totalVolume: products.reduce((sum, p) => sum + p.volume, 0),
       totalRevenue: products.reduce((sum, p) => sum + p.fatturato, 0),
-      totalProducts: products.length,
-      avgTrend: products.length > 0 ? products.reduce((sum, p) => sum + p.trend, 0) / products.length : 0
+      totalProducts: products.length
     };
   }, [filteredProducts]);
 
@@ -263,16 +271,6 @@ const ModernProductsAnalysis = () => {
               <span className="stat-label">Fatturato Prodotti</span>
             </div>
           </div>
-
-          <div className="stat-card info">
-            <div className="stat-icon">
-              <BarChart3 size={28} />
-            </div>
-            <div className="stat-content">
-              <span className="stat-value">{totalStats.avgTrend.toFixed(1)}%</span>
-              <span className="stat-label">Trend Medio</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -323,12 +321,6 @@ const ModernProductsAnalysis = () => {
               Fatturato
             </button>
             <button
-              className={`sort-btn ${sortBy === 'trend' ? 'active' : ''}`}
-              onClick={() => setSortBy('trend')}
-            >
-              Trend
-            </button>
-            <button
               className={`sort-btn ${sortBy === 'agents' ? 'active' : ''}`}
               onClick={() => setSortBy('agents')}
             >
@@ -344,7 +336,6 @@ const ModernProductsAnalysis = () => {
           {sortedProducts.length > 0 ? (
             sortedProducts.map(([productKey, product]) => {
               const Icon = getProductIcon(productKey);
-              const TrendIcon = getTrendIcon(product.trend);
 
               return (
                 <div
@@ -366,10 +357,6 @@ const ModernProductsAnalysis = () => {
                           {product.agents} agenti
                         </span>
                       </div>
-                    </div>
-                    <div className={`trend-indicator ${getTrendColor(product.trend)}`}>
-                      <TrendIcon size={20} />
-                      <span>{Math.abs(product.trend).toFixed(1)}%</span>
                     </div>
                   </div>
 
@@ -426,7 +413,6 @@ const ModernProductsAnalysis = () => {
                   <th>Volume</th>
                   <th>Fatturato</th>
                   <th>Agenti</th>
-                  <th>Trend</th>
                   <th>Top Performer</th>
                 </tr>
               </thead>
@@ -453,9 +439,6 @@ const ModernProductsAnalysis = () => {
                       </td>
                       <td className="agents-cell">
                         {product.agents}
-                      </td>
-                      <td className={`trend-cell ${getTrendColor(product.trend)}`}>
-                        {product.trend >= 0 ? '+' : ''}{product.trend.toFixed(1)}%
                       </td>
                       <td className="top-agent-cell">
                         {product.topAgents[0]?.split(' ')[0] || '-'}
