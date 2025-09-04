@@ -632,14 +632,12 @@ class ApiService {
    */
   async getUsers() {
     const response = await this.makeRequest('users');
-    // Il backend restituisce un oggetto { success: true, 0: user1, 1: user2, ... }
-    // a causa della funzione helper `respondWithSuccess`. Lo convertiamo in un array.
-    if (response && typeof response === 'object' && response.success) {
-      delete response.success;
-      return Object.values(response);
+    // Il backend ora restituisce correttamente un oggetto con una chiave 'users'.
+    if (response && Array.isArray(response.users)) {
+      return response.users;
     }
-    // Fallback nel caso in cui la risposta sia già un array o non valida
-    return Array.isArray(response) ? response : [];
+    // Fallback per risposte non valide o vuote.
+    return [];
   }
 
   /**
