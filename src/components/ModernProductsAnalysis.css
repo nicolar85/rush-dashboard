@@ -452,32 +452,350 @@
   color: #64748b;
 }
 
-/* Chart View Styles */
-.charts-container {
-  background: white;
-  border-radius: 20px;
-  padding: 80px 40px;
-  text-align: center;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  color: #64748b;
+/* Chart View Styles - NUOVA IMPLEMENTAZIONE */
+.charts-container-real {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.chart-placeholder h3 {
-  margin: 16px 0 8px 0;
-  font-size: 1.5rem;
+.chart-controls {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  background: white;
+  padding: 20px 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.chart-type-selector,
+.chart-metric-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-type-selector label,
+.chart-metric-selector label {
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.chart-type-selector select,
+.chart-metric-selector select {
+  padding: 8px 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+}
+
+.chart-type-selector select:focus,
+.chart-metric-selector select:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 24px;
+  min-height: 500px;
+}
+
+.main-chart-card {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.chart-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
   color: #1e293b;
 }
 
-.chart-placeholder p {
-  margin: 8px 0;
-  font-size: 1rem;
+.chart-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-/* Utility Classes */
+.chart-total {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6366f1;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+}
+
+.chart-wrapper {
+  width: 100%;
+  height: 400px;
+  margin-top: 16px;
+}
+
+/* Side Cards */
+.top-products-card,
+.chart-stats-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.top-products-card {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.chart-stats-card {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.top-products-card h4,
+.chart-stats-card h4 {
+  margin: 0 0 20px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Top Products List */
+.top-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.top-product-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, #fefefe, #f8fafc);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.top-product-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+  border-color: #c4b5fd;
+}
+
+.rank-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.product-icon-mini {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.product-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.product-details .product-name {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.85rem;
+}
+
+.product-details .product-value {
+  font-weight: 500;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.product-percentage {
+  font-weight: 700;
+  color: #8b5cf6;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+/* Quick Stats */
+.quick-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quick-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fefefe, #f8fafc);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.quick-stat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.stat-icon.info {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.stat-icon.accent {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.stat-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 0.9rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+/* Responsive per Charts */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .main-chart-card {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .top-products-card {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .chart-stats-card {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .chart-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .chart-type-selector,
+  .chart-metric-selector {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-chart-card {
+    padding: 20px;
+  }
+
+  .chart-wrapper {
+    height: 300px;
+  }
+
+  .chart-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .chart-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .top-product-item {
+    padding: 10px;
+  }
+
+  .quick-stat {
+    padding: 12px;
+  }
+}
+
+/* Utility classes per i colori dei trend */
 .text-green-600 { color: #16a34a; }
-.text-green-500 { color: #22c55e; }
-.text-blue-600 { color: #2563eb; }
-.text-yellow-600 { color: #ca8a04; }
 .text-red-600 { color: #dc2626; }
 
 /* Responsive Design */
