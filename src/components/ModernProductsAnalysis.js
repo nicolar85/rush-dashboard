@@ -280,32 +280,101 @@ const productsData = useMemo(() => {
     }));
   }, [filteredProducts]);
 
-// 🔧 FIX: Sostituisci il chartData useMemo esistente con questo:
 const chartData = useMemo(() => {
+  console.log('chartData useMemo - Inizio elaborazione...');
+
   // 🔧 FIX: Controllo sicurezza sui dati
   if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) {
     console.log('ModernProductsAnalysis: chartData - Nessun prodotto filtrato disponibile');
     return [];
   }
 
-  const data = filteredProductsArray
-    .filter(product => product && product.name) // Filtra prodotti validi
-    .map(product => {
-      // 🔧 FIX: Gestione sicura dei valori
-      const value = chartMetric === 'fatturato' ? (product.fatturato || 0) :
-                   chartMetric === 'volume' ? (product.volume || 0) :
-                   (product.agents || 0);
+  try {
+    const data = filteredProductsArray
+      .filter(product => {
+        // 🔧 FIX: Controllo più rigoroso
+        const isValid = product &&
+                       product.name &&
+                       typeof product === 'object' &&
+                       product.name !== null &&
+                       product.name !== undefined &&
+                       product.name !== '';
 
-      return {
-        name: getProductDisplayName(product.name),
-        value: Number(value) || 0 // Forza conversione a numero
-      };
-    })
-    .filter(item => item.value > 0) // Rimuovi elementi con valore 0
-    .sort((a, b) => b.value - a.value);
+        if (!isValid) {
+          console.warn('Prodotto non valido filtrato:', product);
+        }
+        return isValid;
+      })
+      .map(product => {
+        try {
+          // 🔧 FIX: Gestione sicura dei valori con controlli aggiuntivi
+          let value = 0;
 
-  console.log(`ModernProductsAnalysis: chartData generato per ${chartMetric}:`, data);
-  return data;
+          if (chartMetric === 'fatturato') {
+            value = Number(product.fatturato) || 0;
+          } else if (chartMetric === 'volume') {
+            value = Number(product.volume) || 0;
+          } else if (chartMetric === 'agents') {
+            value = Number(product.agents) || 0;
+          }
+
+          // 🔧 FIX: Assicurati che name sia una stringa valida
+          const displayName = getProductDisplayName(product.name);
+
+          if (!displayName || displayName === null || displayName === undefined) {
+            console.warn('Nome prodotto non valido:', product.name);
+            return null; // Questo sarà filtrato dopo
+          }
+
+          return {
+            name: String(displayName), // Forza stringa
+            value: Math.max(0, Number(value) || 0), // Forza numero positivo
+            originalName: product.name // Mantieni riferimento originale per debug
+          };
+        } catch (error) {
+          console.error('Errore nella mappatura del prodotto:', product, error);
+          return null; // Questo sarà filtrato dopo
+        }
+      })
+      .filter(item => {
+        // 🔧 FIX: Rimuovi elementi null e con valore 0
+        const isValid = item !== null &&
+                       item !== undefined &&
+                       item.name &&
+                       item.value > 0 &&
+                       typeof item.name === 'string' &&
+                       typeof item.value === 'number' &&
+                       !isNaN(item.value);
+
+        if (!isValid && item) {
+          console.warn('Item non valido filtrato dal chartData:', item);
+        }
+
+        return isValid;
+      })
+      .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+    console.log(`ModernProductsAnalysis: chartData generato per ${chartMetric}:`, data);
+
+    // 🔧 FIX: Controllo finale che tutti gli elementi siano validi
+    const validatedData = data.every(item =>
+      item &&
+      item.name &&
+      typeof item.name === 'string' &&
+      typeof item.value === 'number' &&
+      !isNaN(item.value)
+    );
+
+    if (!validatedData) {
+      console.error('chartData contiene elementi non validi!', data);
+      return []; // Ritorna array vuoto in caso di errore
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Errore grave nella creazione di chartData:', error);
+    return []; // Fallback sicuro
+  }
 }, [filteredProductsArray, chartMetric]);
 
 // 🔧 FIX: Rimuovi la doppia definizione di topProducts e usa solo questa:
@@ -646,115 +715,173 @@ const topProducts = useMemo(() => {
           </div>
 
           <div className="chart-wrapper">
-            {/* 🔧 FIX: Controllo aggiuntivo prima di ResponsiveContainer */}
-            {chartData && chartData.length > 0 && (
-              <ResponsiveContainer width="100%" height={400}>
-                {chartType === 'pie' && (
-                  <RechartsPieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) =>
-                      chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                    } />
-                  </RechartsPieChart>
-                )}
+  {/* 🔧 FIX: Triplo controllo prima di ResponsiveContainer */}
+  {chartData &&
+   Array.isArray(chartData) &&
+   chartData.length > 0 &&
+   chartData.every(item => item && item.name && typeof item.value === 'number') && (
+    <ResponsiveContainer width="100%" height={400}>
+      {chartType === 'pie' && (
+        <RechartsPieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, percent }) => {
+              // 🔧 FIX: Controllo sicurezza anche nella label
+              if (!name || typeof percent !== 'number' || isNaN(percent)) return '';
+              return `${name} ${(percent * 100).toFixed(1)}%`;
+            }}
+            outerRadius={120}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {chartData
+              .filter(entry => entry && entry.name && typeof entry.value === 'number') // 🔧 FIX: Filtra ancora
+              .map((entry, index) => (
+                <Cell
+                  key={`cell-${entry.originalName || entry.name}-${index}`}
+                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                />
+              ))
+            }
+          </Pie>
+          <Tooltip
+            formatter={(value, name) => {
+              // 🔧 FIX: Controllo sicurezza nel tooltip
+              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
+              return [
+                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
+                name || ''
+              ];
+            }}
+          />
+        </RechartsPieChart>
+      )}
 
-                {chartType === 'bar' && (
-                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="name"
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      interval={0}
-                    />
-                    <YAxis
-                      tickFormatter={(value) =>
-                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                      }
-                    />
-                    <Tooltip
-                      formatter={(value) =>
-                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                      }
-                    />
-                    <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                )}
+      {chartType === 'bar' && (
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis
+            dataKey="name"
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            interval={0}
+          />
+          <YAxis
+            tickFormatter={(value) => {
+              // 🔧 FIX: Controllo sicurezza nel formatter
+              if (typeof value !== 'number' || isNaN(value)) return '0';
+              return chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value);
+            }}
+          />
+          <Tooltip
+            formatter={(value, name) => {
+              // 🔧 FIX: Controllo sicurezza nel tooltip
+              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
+              return [
+                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
+                name || ''
+              ];
+            }}
+          />
+          <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+            {chartData
+              .filter(entry => entry && entry.name && typeof entry.value === 'number') // 🔧 FIX: Filtra ancora
+              .map((entry, index) => (
+                <Cell
+                  key={`bar-cell-${entry.originalName || entry.name}-${index}`}
+                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                />
+              ))
+            }
+          </Bar>
+        </BarChart>
+      )}
 
-                {chartType === 'line' && (
-                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="name" />
-                    <YAxis
-                      tickFormatter={(value) =>
-                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                      }
-                    />
-                    <Tooltip
-                      formatter={(value) =>
-                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                      }
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
-                    />
-                  </LineChart>
-                )}
+      {chartType === 'line' && (
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey="name" />
+          <YAxis
+            tickFormatter={(value) => {
+              if (typeof value !== 'number' || isNaN(value)) return '0';
+              return chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value);
+            }}
+          />
+          <Tooltip
+            formatter={(value, name) => {
+              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
+              return [
+                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
+                name || ''
+              ];
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke="#8b5cf6"
+            strokeWidth={2}
+            dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+          />
+        </LineChart>
+      )}
 
-                {chartType === 'area' && (
-                  <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="name" />
-                    <YAxis
-                      tickFormatter={(value) =>
-                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                      }
-                    />
-                    <Tooltip
-                      formatter={(value) =>
-                        chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value)
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      fill="url(#colorGradient)"
-                    />
-                    <defs>
-                      <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                      </linearGradient>
-                    </defs>
-                  </AreaChart>
-                )}
-              </ResponsiveContainer>
-            )}
-          </div>
+      {chartType === 'area' && (
+        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey="name" />
+          <YAxis
+            tickFormatter={(value) => {
+              if (typeof value !== 'number' || isNaN(value)) return '0';
+              return chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value);
+            }}
+          />
+          <Tooltip
+            formatter={(value, name) => {
+              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
+              return [
+                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
+                name || ''
+              ];
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke="#8b5cf6"
+            strokeWidth={2}
+            fill="url(#colorGradient)"
+          />
+          <defs>
+            <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+            </linearGradient>
+          </defs>
+        </AreaChart>
+      )}
+    </ResponsiveContainer>
+  )}
+
+  {/* 🔧 FIX: Messaggio di debug se i dati non sono validi */}
+  {(!chartData || !Array.isArray(chartData) || chartData.length === 0) && (
+    <div style={{
+      padding: '40px',
+      textAlign: 'center',
+      color: '#64748b',
+      background: '#f8fafc',
+      borderRadius: '8px',
+      border: '1px dashed #cbd5e1'
+    }}>
+      <p>📊 Nessun dato valido per il grafico</p>
+      <small>chartData: {JSON.stringify(chartData)}</small>
+    </div>
+  )}
+</div>
         </div>
 
         {/* Top Products Card */}
