@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../App';
+import { formatAgentName } from '../utils/formatter';
 import {
   Trophy, Crown, Medal, Target, Users, TrendingUp,
   DollarSign, Filter,
@@ -289,7 +290,7 @@ const ModernSMRanking = () => {
                 </div>
 
                 <div className="sm-info">
-                  <h3 className="sm-name">{sm.name}</h3>
+                  <h3 className="sm-name">{formatAgentName(sm.name)}</h3>
                   <div className="sm-meta">
                     <span className="team-count">
                       <Users size={14} />
@@ -370,7 +371,7 @@ const ModernSMRanking = () => {
                   <div className="team-header">
                     <h4>
                       <Star size={16} />
-                      Team di {sm.name}
+                      Team di {formatAgentName(sm.name)}
                     </h4>
                   </div>
 
@@ -381,7 +382,7 @@ const ModernSMRanking = () => {
                           #{agentIndex + 1}
                         </div>
                         <div className="agent-info">
-                          <h5 className="agent-name">{agent.nome}</h5>
+                          <h5 className="agent-name">{formatAgentName(agent.nome)}</h5>
                           <div className="agent-metrics">
                             <div className="agent-metric">
                               <span className="label">Rush:</span>

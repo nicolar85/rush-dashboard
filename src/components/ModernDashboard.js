@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useData } from '../App';
+import { formatAgentName } from '../utils/formatter';
 import './ModernDashboard.css';
 import {
   BarChart3, Users, Crown, Activity, TrendingUp,
@@ -126,8 +127,8 @@ const ModernDashboard = () => {
                   <Crown size={24} className="text-yellow-500" />
                 </div>
                 <div className="performer-info">
-                  <h4>{stats.topAgent.nome}</h4>
-                  <p>{stats.topAgent.sm}</p>
+                  <h4>{formatAgentName(stats.topAgent.nome)}</h4>
+                  <p>{formatAgentName(stats.topAgent.sm)}</p>
                   <div className="performer-stats">
                     <span><TrendingUp size={14} />{formatCurrency(stats.topAgent.fatturatoRush || 0)}</span>
                     <span><DollarSign size={14} />{formatCurrency(stats.topAgent.fatturato?.complessivo || 0)}</span>
