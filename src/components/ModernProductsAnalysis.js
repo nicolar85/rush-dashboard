@@ -53,6 +53,14 @@ const ModernProductsAnalysis = () => {
   const [chartType, setChartType] = useState('pie'); // pie, bar, line, area
   const [chartMetric, setChartMetric] = useState('fatturato'); // fatturato, volume, agents
 
+  // DEBUG: Console log iniziale
+  console.log('🔍 ModernProductsAnalysis RENDER DEBUG:');
+  console.log('- selectedFileDate:', selectedFileDate);
+  console.log('- data.uploadedFiles:', data.uploadedFiles?.length || 0, 'files');
+  console.log('- viewMode:', viewMode);
+  console.log('- chartType:', chartType);
+  console.log('- chartMetric:', chartMetric);
+
   // Colori per i grafici
   const CHART_COLORS = [
     '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444',
@@ -94,113 +102,118 @@ const ModernProductsAnalysis = () => {
   };
 
   // Processamento dati prodotti
-const productsData = useMemo(() => {
-  // 🔧 FIX: Controlla prima che ci siano dati
-  if (!selectedFileDate || !data.uploadedFiles?.length) {
-    console.log('ModernProductsAnalysis: Nessun file selezionato o caricato');
-    return {};
-  }
+  const productsData = useMemo(() => {
+    console.log('🔧 productsData useMemo - START');
 
-  // 🔧 FIX: Prova prima uploadedFiles (nuovo formato), poi processedData (vecchio formato)
-  let agents = null;
-
-  // Nuovo formato: cerca in uploadedFiles
-  const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
-  if (file?.data?.agents) {
-    agents = file.data.agents;
-    console.log(`ModernProductsAnalysis: Trovati ${agents.length} agenti in uploadedFiles`);
-  }
-  // Fallback: cerca in processedData (compatibilità vecchi dati)
-  else if (data.processedData[selectedFileDate]?.agents) {
-    agents = data.processedData[selectedFileDate].agents;
-    console.log(`ModernProductsAnalysis: Trovati ${agents.length} agenti in processedData`);
-  }
-
-  // 🔧 FIX: Se non ci sono agenti, ritorna oggetto vuoto
-  if (!agents || !Array.isArray(agents) || agents.length === 0) {
-    console.log('ModernProductsAnalysis: Nessun agente trovato');
-    return {};
-  }
-
-  const products = {};
-  const productMapping = {
-    simVoce: 'SIM Voce',
-    simDati: 'SIM Dati',
-    mnp: 'MNP',
-    easyRent: 'Easy Rent',
-    adsl: 'ADSL',
-    linkOu: 'Link OU',
-    linkOa: 'Link OA',
-    linkOaStart: 'Link OA Start',
-    interniOa: 'Interni OA',
-    sdm: 'SDM',
-    ssc: 'SSC',
-    yourBackup: 'Your Backup',
-    cloudNas: 'Cloud NAS',
-    miia: 'MIIA',
-    easyGdpr: 'Easy GDPR',
-    fastwebEnergia: 'Fastweb Energia',
-    station: 'Station'
-  };
-
-  const revenueKeyMapping = {
-    simVoce: 'fatturatoVoce',
-    simDati: 'fatturatoDati',
-    easyRent: 'fatturatoEasyRent',
-    linkOu: 'fatturatoOu',
-    linkOa: 'fatturatoOa',
-    easyDeal: 'fatturatoEasyDeal',
-    altro: 'fatturatoAltro',
-    serviziDigitali: 'fatturatoServiziDigitali',
-    custom: 'fatturatoCustom',
-    sdm: 'fatturatoSdm',
-    ssc: 'fatturatoSsc',
-    yourBackup: 'fatturatoYourBackup',
-    cloudNas: 'fatturatoCloudNas',
-    easyGdpr: 'fatturatoEasyGdpr',
-    miia: 'fatturatoMiia',
-    nuovoCliente: 'fatturatoNuovoCliente'
-  };
-
-  // Aggrega dati per prodotto
-  Object.keys(productMapping).forEach(key => {
-    const revenueKey = revenueKeyMapping[key] || `fatturato${key.charAt(0).toUpperCase() + key.slice(1)}`;
-
-    // 🔧 FIX: Filtra agenti validi prima di processarli
-    const agentsWithProduct = agents
-      .filter(agent => agent && typeof agent === 'object') // Filtra agenti validi
-      .map(agent => ({
-        nome: agent.nome || 'N/A',
-        volume: Number(agent[key]) || 0, // Forza conversione a numero
-        fatturato: Number(agent[revenueKey]) || 0 // Forza conversione a numero
-      }))
-      .filter(item => item.volume > 0) // Solo agenti con volume > 0
-      .sort((a, b) => b.volume - a.volume);
-
-    // 🔧 FIX: Aggiungi prodotto solo se ha agenti validi
-    if (agentsWithProduct.length > 0) {
-      products[key] = {
-        displayName: productMapping[key],
-        volume: agentsWithProduct.reduce((sum, item) => sum + item.volume, 0),
-        fatturato: agentsWithProduct.reduce((sum, item) => sum + item.fatturato, 0),
-        agents: agentsWithProduct.length,
-        topAgents: agentsWithProduct.slice(0, 3).map(item => formatAgentName(item.nome))
-      };
+    // FIX: Controlla prima che ci siano dati
+    if (!selectedFileDate || !data.uploadedFiles?.length) {
+      console.log('ModernProductsAnalysis: Nessun file selezionato o caricato');
+      return {};
     }
-  });
 
-  console.log(`ModernProductsAnalysis: Elaborati ${Object.keys(products).length} prodotti`, products);
-  return products;
-}, [data, selectedFileDate]);
+    // FIX: Prova prima uploadedFiles (nuovo formato), poi processedData (vecchio formato)
+    let agents = null;
+
+    // Nuovo formato: cerca in uploadedFiles
+    const file = data.uploadedFiles.find(f => f.date === selectedFileDate);
+    if (file?.data?.agents) {
+      agents = file.data.agents;
+      console.log(`ModernProductsAnalysis: Trovati ${agents.length} agenti in uploadedFiles`);
+    }
+    // Fallback: cerca in processedData (compatibilità vecchi dati)
+    else if (data.processedData && data.processedData[selectedFileDate]?.agents) {
+      agents = data.processedData[selectedFileDate].agents;
+      console.log(`ModernProductsAnalysis: Trovati ${agents.length} agenti in processedData`);
+    }
+
+    // FIX: Se non ci sono agenti, ritorna oggetto vuoto
+    if (!agents || !Array.isArray(agents) || agents.length === 0) {
+      console.log('ModernProductsAnalysis: Nessun agente trovato');
+      return {};
+    }
+
+    const products = {};
+    const productMapping = {
+      simVoce: 'SIM Voce',
+      simDati: 'SIM Dati',
+      mnp: 'MNP',
+      easyRent: 'Easy Rent',
+      adsl: 'ADSL',
+      linkOu: 'Link OU',
+      linkOa: 'Link OA',
+      linkOaStart: 'Link OA Start',
+      interniOa: 'Interni OA',
+      sdm: 'SDM',
+      ssc: 'SSC',
+      yourBackup: 'Your Backup',
+      cloudNas: 'Cloud NAS',
+      miia: 'MIIA',
+      easyGdpr: 'Easy GDPR',
+      fastwebEnergia: 'Fastweb Energia',
+      station: 'Station'
+    };
+
+    const revenueKeyMapping = {
+      simVoce: 'fatturatoVoce',
+      simDati: 'fatturatoDati',
+      easyRent: 'fatturatoEasyRent',
+      linkOu: 'fatturatoOu',
+      linkOa: 'fatturatoOa',
+      easyDeal: 'fatturatoEasyDeal',
+      altro: 'fatturatoAltro',
+      serviziDigitali: 'fatturatoServiziDigitali',
+      custom: 'fatturatoCustom',
+      sdm: 'fatturatoSdm',
+      ssc: 'fatturatoSsc',
+      yourBackup: 'fatturatoYourBackup',
+      cloudNas: 'fatturatoCloudNas',
+      easyGdpr: 'fatturatoEasyGdpr',
+      miia: 'fatturatoMiia',
+      nuovoCliente: 'fatturatoNuovoCliente'
+    };
+
+    // Aggrega dati per prodotto
+    Object.keys(productMapping).forEach(key => {
+      const revenueKey = revenueKeyMapping[key] || `fatturato${key.charAt(0).toUpperCase() + key.slice(1)}`;
+
+      // FIX: Filtra agenti validi prima di processarli
+      const agentsWithProduct = agents
+        .filter(agent => agent && typeof agent === 'object') // Filtra agenti validi
+        .map(agent => ({
+          nome: agent.nome || 'N/A',
+          volume: Number(agent[key]) || 0, // Forza conversione a numero
+          fatturato: Number(agent[revenueKey]) || 0 // Forza conversione a numero
+        }))
+        .filter(item => item.volume > 0) // Solo agenti con volume > 0
+        .sort((a, b) => b.volume - a.volume);
+
+      // FIX: Aggiungi prodotto solo se ha agenti validi
+      if (agentsWithProduct.length > 0) {
+        products[key] = {
+          displayName: productMapping[key],
+          volume: agentsWithProduct.reduce((sum, item) => sum + item.volume, 0),
+          fatturato: agentsWithProduct.reduce((sum, item) => sum + item.fatturato, 0),
+          agents: agentsWithProduct.length,
+          topAgents: agentsWithProduct.slice(0, 3).map(item => formatAgentName(item.nome))
+        };
+      }
+    });
+
+    console.log(`🔧 productsData useMemo - END: ${Object.keys(products).length} prodotti`, products);
+    return products;
+  }, [data, selectedFileDate]);
 
   // Filtra prodotti per categoria
   const filteredProducts = useMemo(() => {
+    console.log('🔧 filteredProducts useMemo - START');
     if (selectedCategory === 'all') return productsData;
 
     const categoryProducts = productCategories[selectedCategory]?.products || [];
-    return Object.fromEntries(
+    const result = Object.fromEntries(
       Object.entries(productsData).filter(([key]) => categoryProducts.includes(key))
     );
+    console.log(`🔧 filteredProducts useMemo - END: ${Object.keys(result).length} prodotti filtrati`);
+    return result;
   }, [productsData, selectedCategory]);
 
   // Ordina prodotti
@@ -236,7 +249,6 @@ const productsData = useMemo(() => {
       adsl: Wifi,
       linkOu: Shield,
       linkOa: Star,
-      // Aggiungi altri prodotti secondo necessità
     };
     return iconMap[productName] || Package;
   };
@@ -251,7 +263,6 @@ const productsData = useMemo(() => {
       adsl: 'linear-gradient(135deg, #f59e0b, #d97706)',
       linkOu: 'linear-gradient(135deg, #ef4444, #dc2626)',
       linkOa: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-      // Aggiungi altri prodotti secondo necessità
     };
     return colorMap[productName] || 'linear-gradient(135deg, #64748b, #475569)';
   };
@@ -268,134 +279,126 @@ const productsData = useMemo(() => {
       linkOa: 'Link OA',
       linkOaStart: 'Link OA Start',
       interniOa: 'Interni OA',
-      // Aggiungi altri prodotti secondo necessità
     };
     return nameMap[productName] || productName;
   };
 
   const filteredProductsArray = useMemo(() => {
-    return Object.entries(filteredProducts).map(([name, productData]) => ({
+    console.log('🔧 filteredProductsArray useMemo - START');
+    const result = Object.entries(filteredProducts).map(([name, productData]) => ({
       name,
       ...productData
     }));
+    console.log(`🔧 filteredProductsArray useMemo - END: ${result.length} prodotti array`);
+    return result;
   }, [filteredProducts]);
 
-const chartData = useMemo(() => {
-  console.log('chartData useMemo - Inizio elaborazione...');
+  const chartData = useMemo(() => {
+    console.log('🔧 chartData useMemo - START');
+    console.log('- filteredProductsArray:', filteredProductsArray?.length || 0);
+    console.log('- chartMetric:', chartMetric);
 
-  // 🔧 FIX: Controllo sicurezza sui dati
-  if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) {
-    console.log('ModernProductsAnalysis: chartData - Nessun prodotto filtrato disponibile');
-    return [];
-  }
-
-  try {
-    const data = filteredProductsArray
-      .filter(product => {
-        // 🔧 FIX: Controllo più rigoroso
-        const isValid = product &&
-                       product.name &&
-                       typeof product === 'object' &&
-                       product.name !== null &&
-                       product.name !== undefined &&
-                       product.name !== '';
-
-        if (!isValid) {
-          console.warn('Prodotto non valido filtrato:', product);
-        }
-        return isValid;
-      })
-      .map(product => {
-        try {
-          // 🔧 FIX: Gestione sicura dei valori con controlli aggiuntivi
-          let value = 0;
-
-          if (chartMetric === 'fatturato') {
-            value = Number(product.fatturato) || 0;
-          } else if (chartMetric === 'volume') {
-            value = Number(product.volume) || 0;
-          } else if (chartMetric === 'agents') {
-            value = Number(product.agents) || 0;
-          }
-
-          // 🔧 FIX: Assicurati che name sia una stringa valida
-          const displayName = getProductDisplayName(product.name);
-
-          if (!displayName || displayName === null || displayName === undefined) {
-            console.warn('Nome prodotto non valido:', product.name);
-            return null; // Questo sarà filtrato dopo
-          }
-
-          return {
-            name: String(displayName), // Forza stringa
-            value: Math.max(0, Number(value) || 0), // Forza numero positivo
-            originalName: product.name // Mantieni riferimento originale per debug
-          };
-        } catch (error) {
-          console.error('Errore nella mappatura del prodotto:', product, error);
-          return null; // Questo sarà filtrato dopo
-        }
-      })
-      .filter(item => {
-        // 🔧 FIX: Rimuovi elementi null e con valore 0
-        const isValid = item !== null &&
-                       item !== undefined &&
-                       item.name &&
-                       item.value > 0 &&
-                       typeof item.name === 'string' &&
-                       typeof item.value === 'number' &&
-                       !isNaN(item.value);
-
-        if (!isValid && item) {
-          console.warn('Item non valido filtrato dal chartData:', item);
-        }
-
-        return isValid;
-      })
-      .sort((a, b) => (b.value || 0) - (a.value || 0));
-
-    console.log(`ModernProductsAnalysis: chartData generato per ${chartMetric}:`, data);
-
-    // 🔧 FIX: Controllo finale che tutti gli elementi siano validi
-    const validatedData = data.every(item =>
-      item &&
-      item.name &&
-      typeof item.name === 'string' &&
-      typeof item.value === 'number' &&
-      !isNaN(item.value)
-    );
-
-    if (!validatedData) {
-      console.error('chartData contiene elementi non validi!', data);
-      return []; // Ritorna array vuoto in caso di errore
+    // FIX: Controllo sicurezza sui dati
+    if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) {
+      console.log('ModernProductsAnalysis: chartData - Nessun prodotto filtrato disponibile');
+      return [];
     }
 
-    return data;
-  } catch (error) {
-    console.error('Errore grave nella creazione di chartData:', error);
-    return []; // Fallback sicuro
-  }
-}, [filteredProductsArray, chartMetric]);
+    try {
+      const data = filteredProductsArray
+        .filter(product => {
+          // FIX: Controllo più rigoroso
+          const isValid = product &&
+                         product.name &&
+                         typeof product === 'object' &&
+                         product.name !== null &&
+                         product.name !== undefined &&
+                         product.name !== '';
 
-// 🔧 FIX: Rimuovi la doppia definizione di topProducts e usa solo questa:
-const topProducts = useMemo(() => {
-  if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) {
-    console.log('ModernProductsAnalysis: topProducts - Nessun prodotto disponibile');
-    return [];
-  }
+          if (!isValid) {
+            console.warn('Prodotto non valido filtrato:', product);
+          }
+          return isValid;
+        })
+        .map(product => {
+          try {
+            // FIX: Gestione sicura dei valori con controlli aggiuntivi
+            let value = 0;
 
-  return [...filteredProductsArray]
-    .filter(product => product && product.name) // Filtra prodotti validi
-    .sort((a, b) => {
-      const aValue = chartMetric === 'fatturato' ? (a.fatturato || 0) :
-                    chartMetric === 'volume' ? (a.volume || 0) :
-                    (a.agents || 0);
-      const bValue = chartMetric === 'fatturato' ? (b.fatturato || 0) :
-                    chartMetric === 'volume' ? (b.volume || 0) :
-                    (b.agents || 0);
-      return bValue - aValue;
-    });
-}, [filteredProductsArray, chartMetric]);
+            if (chartMetric === 'fatturato') {
+              value = Number(product.fatturato) || 0;
+            } else if (chartMetric === 'volume') {
+              value = Number(product.volume) || 0;
+            } else if (chartMetric === 'agents') {
+              value = Number(product.agents) || 0;
+            }
+
+            // FIX: Assicurati che name sia una stringa valida
+            const displayName = getProductDisplayName(product.name);
+
+            if (!displayName || displayName === null || displayName === undefined) {
+              console.warn('Nome prodotto non valido:', product.name);
+              return null; // Questo sarà filtrato dopo
+            }
+
+            return {
+              name: String(displayName), // Forza stringa
+              value: Math.max(0, Number(value) || 0), // Forza numero positivo
+              originalName: product.name // Mantieni riferimento originale per debug
+            };
+          } catch (error) {
+            console.error('Errore nella mappatura del prodotto:', product, error);
+            return null; // Questo sarà filtrato dopo
+          }
+        })
+        .filter(item => {
+          // FIX: Rimuovi elementi null e con valore 0
+          const isValid = item !== null &&
+                         item !== undefined &&
+                         item.name &&
+                         item.value > 0 &&
+                         typeof item.name === 'string' &&
+                         typeof item.value === 'number' &&
+                         !isNaN(item.value);
+
+          if (!isValid && item) {
+            console.warn('Item non valido filtrato dal chartData:', item);
+          }
+
+          return isValid;
+        })
+        .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+      console.log(`🔧 chartData useMemo - END: ${data.length} elementi`, data);
+      return data;
+    } catch (error) {
+      console.error('Errore grave nella creazione di chartData:', error);
+      return []; // Fallback sicuro
+    }
+  }, [filteredProductsArray, chartMetric]);
+
+  // FIX: Rimuovi la doppia definizione di topProducts e usa solo questa:
+  const topProducts = useMemo(() => {
+    console.log('🔧 topProducts useMemo - START');
+    if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) {
+      console.log('ModernProductsAnalysis: topProducts - Nessun prodotto disponibile');
+      return [];
+    }
+
+    const result = [...filteredProductsArray]
+      .filter(product => product && product.name) // Filtra prodotti validi
+      .sort((a, b) => {
+        const aValue = chartMetric === 'fatturato' ? (a.fatturato || 0) :
+                      chartMetric === 'volume' ? (a.volume || 0) :
+                      (a.agents || 0);
+        const bValue = chartMetric === 'fatturato' ? (b.fatturato || 0) :
+                      chartMetric === 'volume' ? (b.volume || 0) :
+                      (b.agents || 0);
+        return bValue - aValue;
+      });
+    console.log(`🔧 topProducts useMemo - END: ${result.length} prodotti top`);
+    return result;
+  }, [filteredProductsArray, chartMetric]);
 
   const getTrendColor = (trend) => {
     if (trend > 5) return 'text-green-600';
@@ -590,7 +593,7 @@ const topProducts = useMemo(() => {
                   </div>
 
                   <div className="top-agents">
-                    <span className="top-agents-label">🏆 Top Performer:</span>
+                    <span className="top-agents-label">Top Performer:</span>
                     <div className="agents-list">
                       {product.topAgents.slice(0, 2).map((agent, index) => (
                         <span key={agent} className={`agent-badge ${index === 0 ? 'gold' : 'silver'}`}>
@@ -662,9 +665,8 @@ const topProducts = useMemo(() => {
         </div>
       )}
 
-{viewMode === 'chart' && (
+      {viewMode === 'chart' && (
   <div className="charts-container-real">
-    {/* Chart Controls */}
     <div className="chart-controls">
       <div className="chart-type-selector">
         <label>Tipo Grafico:</label>
@@ -675,7 +677,6 @@ const topProducts = useMemo(() => {
           <option value="area">Grafico ad Area</option>
         </select>
       </div>
-
       <div className="chart-metric-selector">
         <label>Metrica:</label>
         <select value={chartMetric} onChange={(e) => setChartMetric(e.target.value)}>
@@ -686,248 +687,145 @@ const topProducts = useMemo(() => {
       </div>
     </div>
 
-    {/* 🔧 FIX: Controllo condizionale prima del rendering */}
-    {!chartData || chartData.length === 0 ? (
-      <div className="no-chart-data">
-        <Package size={48} className="opacity-30" />
-        <h3>Nessun dato disponibile per i grafici</h3>
-        <p>Non ci sono dati sufficienti per generare il grafico richiesto.</p>
-        <p>Controlla i filtri attivi o carica un file con dati prodotti.</p>
-      </div>
-    ) : (
-      <div className="charts-grid">
-        {/* Main Chart */}
-        <div className="main-chart-card">
-          <div className="chart-header">
-            <h3>
-              {chartType === 'pie' && 'Distribuzione per Prodotto'}
-              {chartType === 'bar' && 'Confronto Prodotti'}
-              {chartType === 'line' && 'Trend Prodotti'}
-              {chartType === 'area' && 'Performance Cumulativa'}
-            </h3>
-            <div className="chart-info">
-              <span className="chart-total">
-                {chartMetric === 'fatturato' && `Totale: ${formatCurrency(totalStats.totalRevenue)}`}
-                {chartMetric === 'volume' && `Totale: ${formatNumber(totalStats.totalVolume)}`}
-                {chartMetric === 'agents' && `Totale: ${totalStats.totalProducts} prodotti`}
-              </span>
-            </div>
-          </div>
-
-          <div className="chart-wrapper">
-  {/* 🔧 FIX: Triplo controllo prima di ResponsiveContainer */}
-  {chartData &&
-   Array.isArray(chartData) &&
-   chartData.length > 0 &&
-   chartData.every(item => item && item.name && typeof item.value === 'number') && (
-    <ResponsiveContainer width="100%" height={400}>
-      {chartType === 'pie' && (
-        <RechartsPieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) => {
-              // 🔧 FIX: Controllo sicurezza anche nella label
-              if (!name || typeof percent !== 'number' || isNaN(percent)) return '';
-              return `${name} ${(percent * 100).toFixed(1)}%`;
-            }}
-            outerRadius={120}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {chartData
-              .filter(entry => entry && entry.name && typeof entry.value === 'number') // 🔧 FIX: Filtra ancora
-              .map((entry, index) => (
-                <Cell
-                  key={`cell-${entry.originalName || entry.name}-${index}`}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
-                />
-              ))
-            }
-          </Pie>
-          <Tooltip
-            formatter={(value, name) => {
-              // 🔧 FIX: Controllo sicurezza nel tooltip
-              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
-              return [
-                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
-                name || ''
-              ];
-            }}
-          />
-        </RechartsPieChart>
-      )}
-
-      {chartType === 'bar' && (
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis
-            dataKey="name"
-            angle={-45}
-            textAnchor="end"
-            height={80}
-            interval={0}
-          />
-          <YAxis
-            tickFormatter={(value) => {
-              // 🔧 FIX: Controllo sicurezza nel formatter
-              if (typeof value !== 'number' || isNaN(value)) return '0';
-              return chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value);
-            }}
-          />
-          <Tooltip
-            formatter={(value, name) => {
-              // 🔧 FIX: Controllo sicurezza nel tooltip
-              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
-              return [
-                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
-                name || ''
-              ];
-            }}
-          />
-          <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
-            {chartData
-              .filter(entry => entry && entry.name && typeof entry.value === 'number') // 🔧 FIX: Filtra ancora
-              .map((entry, index) => (
-                <Cell
-                  key={`bar-cell-${entry.originalName || entry.name}-${index}`}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
-                />
-              ))
-            }
-          </Bar>
-        </BarChart>
-      )}
-
-      {chartType === 'line' && (
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="name" />
-          <YAxis
-            tickFormatter={(value) => {
-              if (typeof value !== 'number' || isNaN(value)) return '0';
-              return chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value);
-            }}
-          />
-          <Tooltip
-            formatter={(value, name) => {
-              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
-              return [
-                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
-                name || ''
-              ];
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke="#8b5cf6"
-            strokeWidth={2}
-            dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
-          />
-        </LineChart>
-      )}
-
-      {chartType === 'area' && (
-        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="name" />
-          <YAxis
-            tickFormatter={(value) => {
-              if (typeof value !== 'number' || isNaN(value)) return '0';
-              return chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value);
-            }}
-          />
-          <Tooltip
-            formatter={(value, name) => {
-              if (typeof value !== 'number' || isNaN(value)) return ['0', name || ''];
-              return [
-                chartMetric === 'fatturato' ? formatCurrency(value) : formatNumber(value),
-                name || ''
-              ];
-            }}
-          />
-          <Area
-            type="monotone"
-            dataKey="value"
-            stroke="#8b5cf6"
-            strokeWidth={2}
-            fill="url(#colorGradient)"
-          />
-          <defs>
-            <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-            </linearGradient>
-          </defs>
-        </AreaChart>
-      )}
-    </ResponsiveContainer>
-  )}
-
-  {/* 🔧 FIX: Messaggio di debug se i dati non sono validi */}
-  {(!chartData || !Array.isArray(chartData) || chartData.length === 0) && (
+    {/* DEBUG INFO - Mostra sempre */}
     <div style={{
-      padding: '40px',
-      textAlign: 'center',
-      color: '#64748b',
-      background: '#f8fafc',
+      padding: '20px',
+      background: '#f0f9ff',
+      border: '1px solid #0ea5e9',
       borderRadius: '8px',
-      border: '1px dashed #cbd5e1'
+      marginBottom: '20px'
     }}>
-      <p>📊 Nessun dato valido per il grafico</p>
-      <small>chartData: {JSON.stringify(chartData)}</small>
-    </div>
-  )}
-</div>
-        </div>
+      <h4>🔍 DEBUG INFO</h4>
+      <p><strong>selectedFileDate:</strong> {selectedFileDate || 'nessuno'}</p>
+      <p><strong>data.uploadedFiles:</strong> {data.uploadedFiles?.length || 0} files</p>
+      <p><strong>chartData:</strong> {chartData ? `${chartData.length} elementi` : 'null/undefined'}</p>
+      <p><strong>filteredProductsArray:</strong> {filteredProductsArray?.length || 0} elementi</p>
+      <p><strong>productsData keys:</strong> {Object.keys(productsData || {}).length}</p>
+      <p><strong>viewMode:</strong> {viewMode}</p>
+      <p><strong>chartType:</strong> {chartType}</p>
 
-        {/* Top Products Card */}
-        {/* 🔧 FIX: Controllo sui topProducts prima del rendering */}
-        {topProducts && topProducts.length > 0 && (
-          <div className="top-products-card">
-            <h4>Top 5 Prodotti</h4>
-            <div className="top-products-list">
-              {topProducts.slice(0, 5).map((product, index) => {
-                const Icon = getProductIcon(product.name);
-                const metricValue = chartMetric === 'fatturato' ? product.fatturato :
-                                  chartMetric === 'volume' ? product.volume :
-                                  product.agents;
-                return (
-                  <div key={`${product.name}-${index}`} className="top-product-item">
-                    <div className="rank-badge">{index + 1}</div>
-                    <div className="product-icon-mini" style={{ background: getProductColor(product.name) }}>
-                      <Icon size={16} color="white" />
-                    </div>
-                    <div className="product-details">
-                      <span className="product-name">{getProductDisplayName(product.name)}</span>
-                      <span className="product-value">
-                        {chartMetric === 'fatturato' && formatCurrency(metricValue)}
-                        {chartMetric === 'volume' && formatNumber(metricValue)}
-                        {chartMetric === 'agents' && `${metricValue} agenti`}
-                      </span>
-                    </div>
-                    <div className="product-percentage">
-                      {totalStats.totalRevenue > 0 && (
-                        <>
-                          {((metricValue / totalStats[
-                            chartMetric === 'fatturato' ? 'totalRevenue' :
-                            chartMetric === 'volume' ? 'totalVolume' :
-                            'totalProducts'
-                          ]) * 100).toFixed(1)}%
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+      <details>
+        <summary>Dati uploadedFiles</summary>
+        <pre style={{ fontSize: '12px', overflow: 'auto', maxHeight: '200px' }}>
+          {JSON.stringify(data.uploadedFiles?.map(f => ({
+            date: f.date,
+            name: f.name,
+            hasData: !!f.data,
+            hasAgents: !!f.data?.agents,
+            agentsCount: f.data?.agents?.length || 0
+          })), null, 2)}
+        </pre>
+      </details>
+    </div>
+
+    {/* CONTROLLO ULTRA-RIGOROSO PRIMA DEI GRAFICI */}
+    {(() => {
+      // Verifica step-by-step
+      if (!selectedFileDate) {
+        return (
+          <div style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', border: '1px solid #ef4444', borderRadius: '8px' }}>
+            <h3>❌ ERRORE: Nessun file selezionato</h3>
+            <p>selectedFileDate è: {String(selectedFileDate)}</p>
+          </div>
+        );
+      }
+
+      if (!data.uploadedFiles || data.uploadedFiles.length === 0) {
+        return (
+          <div style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', border: '1px solid #ef4444', borderRadius: '8px' }}>
+            <h3>❌ ERRORE: Nessun file caricato</h3>
+            <p>uploadedFiles: {String(data.uploadedFiles)}</p>
+          </div>
+        );
+      }
+
+      if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
+        return (
+          <div style={{ padding: '40px', textAlign: 'center', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px' }}>
+            <h3>⚠️ NESSUN DATO PER I GRAFICI</h3>
+            <p>chartData: {JSON.stringify(chartData)}</p>
+            <p>Prova a cambiare file o controlla che i dati siano stati caricati correttamente.</p>
+          </div>
+        );
+      }
+
+      // Verifica che ogni elemento di chartData sia valido
+      const invalidItems = chartData.filter(item =>
+        !item ||
+        !item.name ||
+        typeof item.name !== 'string' ||
+        typeof item.value !== 'number' ||
+        isNaN(item.value)
+      );
+
+      if (invalidItems.length > 0) {
+        return (
+          <div style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', border: '1px solid #ef4444', borderRadius: '8px' }}>
+            <h3>❌ ERRORE: Dati chartData non validi</h3>
+            <p>{invalidItems.length} elementi non validi su {chartData.length}</p>
+            <details>
+              <summary>Elementi non validi</summary>
+              <pre style={{ fontSize: '12px' }}>{JSON.stringify(invalidItems, null, 2)}</pre>
+            </details>
+          </div>
+        );
+      }
+
+      // Se arriviamo qui, i dati sono validi - PROVA GRAFICO SEMPLICE
+      return (
+        <div className="charts-grid">
+          <div className="main-chart-card">
+            <div className="chart-header">
+              <h3>✅ Test Grafico - {chartType}</h3>
+              <p>Dati validi: {chartData.length} elementi</p>
+            </div>
+
+            <div className="chart-wrapper">
+              {/* VERSIONE SEMPLIFICATA SENZA ResponsiveContainer PER TEST */}
+              <div style={{
+                width: '100%',
+                height: '400px',
+                background: '#f8fafc',
+                border: '2px dashed #cbd5e1',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px'
+              }}>
+                <h4>📊 Dati pronti per il grafico {chartType.toUpperCase()}</h4>
+                <p>Tipo: {chartType} | Metrica: {chartMetric}</p>
+
+                {/* Lista semplice dei dati invece del grafico */}
+                <div style={{ maxHeight: '200px', overflow: 'auto', width: '100%' }}>
+                  <table style={{ width: '100%', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: '#e2e8f0' }}>
+                        <th style={{ padding: '8px' }}>Prodotto</th>
+                        <th style={{ padding: '8px' }}>Valore</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chartData.slice(0, 10).map((item, index) => (
+                        <tr key={index}>
+                          <td style={{ padding: '4px' }}>{item.name}</td>
+                          <td style={{ padding: '4px' }}>{item.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '10px' }}>
+                  ⚠️ ResponsiveContainer temporaneamente disabilitato per debug
+                </p>
+              </div>
             </div>
           </div>
-        )}
-      </div>
-    )}
+        </div>
+      );
+    })()}
   </div>
 )}
 
