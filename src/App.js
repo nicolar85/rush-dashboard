@@ -314,9 +314,10 @@ const Login = ({ onLogin }) => {
 
 
 // Componente File Upload - SEMPLIFICATO (non più responsabile del caricamento globale)
-const FileUpload = ({ openDialog }) => {
+const FileUpload = ({ openDialog, currentUser }) => {
   const { data, loadFiles, globalLoading } = useData();
   const [uploading, setUploading] = useState(false);
+  const isViewer = currentUser?.role === 'viewer';
 
   // ⚠️ IMPORTANTE: Ora loadFiles è gestito globalmente, non qui
 
@@ -492,28 +493,37 @@ const FileUpload = ({ openDialog }) => {
 
   return (
     <div className="file-upload-section">
-      <h3>📁 Carica File Mensile</h3>
-      <div className="upload-area">
-        <input
-          type="file"
-          id="file-upload"
-          accept=".xlsx,.xls"
-          onChange={handleFileUpload}
-          disabled={uploading}
-          className="file-input"
-        />
-        <label htmlFor="file-upload" className={`upload-label ${uploading ? 'uploading' : ''}`}>
-          {uploading ? '⏳ Caricamento...' : '📤 Seleziona File Excel'}
-        </label>
-      </div>
-      
-      <div className="upload-info">
-        <p>Formato file: <code>YYYY.MM.DD Piramis Gara RUSH Inflow Agenti.xlsx</code></p>
-        <p>File supportati: .xlsx, .xls</p>
-        <p className="parser-info">
-          🧠 <strong>Parser Dinamico:</strong> Si adatta automaticamente alle variazioni tra file diversi
-        </p>
-      </div>
+      {isViewer ? (
+        <div className="viewer-message">
+          <p>La funzione di caricamento ed eliminazione è disponibile solo per gli amministratori.</p>
+          <p>Contatta un amministratore per gestire i file.</p>
+        </div>
+      ) : (
+        <>
+          <h3>📁 Carica File Mensile</h3>
+          <div className="upload-area">
+            <input
+              type="file"
+              id="file-upload"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="file-input"
+            />
+            <label htmlFor="file-upload" className={`upload-label ${uploading ? 'uploading' : ''}`}>
+              {uploading ? '⏳ Caricamento...' : '📤 Seleziona File Excel'}
+            </label>
+          </div>
+
+          <div className="upload-info">
+            <p>Formato file: <code>YYYY.MM.DD Piramis Gara RUSH Inflow Agenti.xlsx</code></p>
+            <p>File supportati: .xlsx, .xls</p>
+            <p className="parser-info">
+              🧠 <strong>Parser Dinamico:</strong> Si adatta automaticamente alle variazioni tra file diversi
+            </p>
+          </div>
+        </>
+      )}
       
       <div className="uploaded-files">
         <h4>File Caricati ({data.uploadedFiles.length})</h4>
@@ -540,13 +550,15 @@ const FileUpload = ({ openDialog }) => {
                 <span className="file-date">{file.displayDate}</span>
                 <div className="file-actions">
                   <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
-                  <button 
-                    className="delete-file-btn"
-                    onClick={() => handleDeleteFile(file.date, file.name)}
-                    title="Elimina file"
-                  >
-                    🗑️
-                  </button>
+                  {!isViewer && (
+                    <button
+                      className="delete-file-btn"
+                      onClick={() => handleDeleteFile(file.date, file.name)}
+                      title="Elimina file"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -609,7 +621,7 @@ const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
       case 'dashboard':
         return <ModernDashboard />;
       case 'files':
-        return <FileUpload openDialog={openDialog} />;
+        return <FileUpload openDialog={openDialog} currentUser={currentUser} />;
       case 'sm-ranking':
         return <ModernSMRanking />;
       case 'agents':

@@ -96,27 +96,33 @@ const ModernSidebar = ({
             })}
           </div>
 
-          {currentUser?.role === 'admin' && (
+          {(currentUser?.role === 'admin' || currentUser?.role === 'viewer') && (
             <div className="nav-section">
               <span className="section-title">Impostazioni</span>
-              {settingsMenuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeSection === item.id;
-                return (
-                  <button key={item.id} className={`nav-item ${isActive ? 'active' : ''}`} onClick={() => handleItemClick(item.id)}>
-                    <div className={`nav-icon bg-gradient-to-r ${item.color}`}>
-                      <Icon size={20} />
-                    </div>
-                    {(!isCollapsed || !isMobile) && (
-                      <div className="nav-content">
-                        <span className="nav-label">{item.label}</span>
-                        <span className="nav-description">{item.description}</span>
+              {settingsMenuItems
+                .filter(item => {
+                  if (item.id === 'files') return true;
+                  if (item.id === 'settings') return currentUser.role === 'admin';
+                  return false;
+                })
+                .map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeSection === item.id;
+                  return (
+                    <button key={item.id} className={`nav-item ${isActive ? 'active' : ''}`} onClick={() => handleItemClick(item.id)}>
+                      <div className={`nav-icon bg-gradient-to-r ${item.color}`}>
+                        <Icon size={20} />
                       </div>
-                    )}
-                    {isActive && <div className="active-indicator" />}
-                  </button>
-                );
-              })}
+                      {(!isCollapsed || !isMobile) && (
+                        <div className="nav-content">
+                          <span className="nav-label">{item.label}</span>
+                          <span className="nav-description">{item.description}</span>
+                        </div>
+                      )}
+                      {isActive && <div className="active-indicator" />}
+                    </button>
+                  );
+                })}
             </div>
           )}
         </nav>
