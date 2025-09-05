@@ -339,6 +339,7 @@
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-wrap: wrap;
 }
 
 .menu-toggle {
@@ -383,6 +384,9 @@
 .quick-stats {
   display: flex;
   gap: 16px;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .stat-item {
@@ -504,7 +508,7 @@
     padding: 24px;
   }
 
-  .quick-stats {
+  .quick-stats .stat-item {
     display: none;
   }
 }
@@ -588,7 +592,11 @@
 
   /* TOPBAR MOBILE: Nascondi elementi non essenziali */
   .quick-stats {
-    display: none;
+    display: flex; /* Assicurati che il contenitore sia flessibile */
+  }
+
+  .quick-stats .stat-item {
+    display: none; /* Nascondi solo la data */
   }
 
   .user-details {
@@ -845,6 +853,10 @@
   background-repeat: no-repeat;
   background-position: right 8px center;
   padding-right: 32px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .modern-topbar.dark .period-selector select {
