@@ -4,14 +4,30 @@
  */
 
 // ✅ SOLUZIONE: Usa sempre l'API di produzione per evitare problemi localhost
-const API_BASE_URL = 'https://rush.nicolaruotolo.it/api';
+const DEFAULT_API_BASE_URL = 'https://rush.nicolaruotolo.it/api';
+
+const resolveRuntimeEnv = () => {
+  try {
+    return import.meta.env ?? {};
+  } catch (error) {
+    if (typeof process !== 'undefined' && process.env) {
+      return {
+        MODE: process.env.NODE_ENV,
+        VITE_API_BASE_URL: process.env.VITE_API_BASE_URL ?? process.env.REACT_APP_API_BASE_URL,
+      };
+    }
+    return {};
+  }
+};
+
+const runtimeEnv = resolveRuntimeEnv();
+const mode = runtimeEnv.MODE || 'development';
+const API_BASE_URL = runtimeEnv.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
 // 🔄 ALTERNATIVA: Se vuoi distinguere sviluppo/produzione
-// const API_BASE_URL = process.env.NODE_ENV === 'production'
-//   ? 'https://rush.nicolaruotolo.it/api'        // Produzione
-//   : 'https://rush.nicolaruotolo.it/api';       // Anche in sviluppo usa produzione
+// Imposta VITE_API_BASE_URL nello specifico file `.env` per l'ambiente desiderato.
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = mode === 'production';
 const logDebug = (...args) => {
   if (!isProduction) {
     console.log(...args);
@@ -47,7 +63,7 @@ class ApiService {
 
     // 🐛 DEBUG: Mostra quale URL sta usando
     logDebug(`🔗 API URL configurata: ${this.baseURL}`);
-    logDebug(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logDebug(`🌍 Environment: ${mode}`);
   }
 
   /**

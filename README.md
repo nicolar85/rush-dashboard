@@ -1,70 +1,56 @@
-# Getting Started with Create React App
+# Rush Dashboard Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Questo repository contiene il frontend della dashboard RUSH. Il progetto era stato originariamente avviato con Create React App (`react-scripts` 5). L'obiettivo di questa attività è stato analizzare la configurazione generata da CRA e migrare verso una toolchain moderna ma interamente configurabile in locale, mantenendo la compatibilità con React 19 e con l'infrastruttura esistente.
 
-## Available Scripts
+## 1. Analisi della configurazione CRA
 
-In the project directory, you can run:
+| Area | Comportamento con CRA | Implicazioni per la migrazione |
+| --- | --- | --- |
+| **Script npm** | `npm start`, `npm run build`, `npm test` delegano a `react-scripts` che incapsula Webpack, Babel, ESLint e Jest. | Per avere pieno controllo è necessario sostituire gli script con entry point espliciti (dev server, build, lint). |
+| **Routing SPA** | Dev server CRA abilita automaticamente l'HTML5 history fallback. | La nuova toolchain deve garantire fallback verso `index.html` sia in sviluppo che in anteprima build. |
+| **Variabili d'ambiente** | Accesso tramite `process.env` e prefisso `REACT_APP_`; il codice usa solo `NODE_ENV` per logging. | È stato introdotto un resolver che supporta sia `import.meta.env` (nuovo toolchain) sia il vecchio `process.env` per compatibilità e permette di definire `VITE_API_BASE_URL`/`REACT_APP_API_BASE_URL`. |
+| **Asset statici** | Cartella `public/` copiata così com'è; l'`index.html` usa `%PUBLIC_URL%`. | La build personalizzata copia `public/` (escluso `index.html`) e aggiorna i riferimenti HTML con percorsi assoluti `/...`. |
 
-### `npm start`
+## 2. Nuova toolchain: Webpack 5 configurato a mano
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Impossibilitati a scaricare nuove dipendenze dal registry, abbiamo scelto di riutilizzare l'ecosistema già presente (Webpack 5, Babel e PostCSS forniti transitivamente da CRA) ma con configurazione esplicita:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **`webpack.config.js`** riproduce la pipeline di build e sviluppo con gestione di asset, CSS (PostCSS + Autoprefixer), code splitting e fallback per il routing.
+- **Script Node dedicati** (`scripts/dev.js`, `scripts/build.js`, `scripts/preview.js`) sostituiscono gli entry point di `react-scripts`, mantenendo lo stesso `node_modules` già disponibile offline.
+- **Iniezione variabili d'ambiente** via `webpack.DefinePlugin`, esponendo sia `process.env` sia `import.meta.env` (`MODE` e `VITE_API_BASE_URL`).
+- **Gestione asset statici** tramite uno script di copia (`scripts/utils/copyPublicAssets.js`) che trasferisce la cartella `public/` nella build finale.
 
-### `npm test`
+Questa soluzione fornisce controllo completo sulla toolchain pur restando utilizzabile senza scaricare nuovi pacchetti.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 3. Comandi disponibili
 
-### `npm run build`
+Eseguire una sola volta `npm install` (se si dispone dell'accesso al registry) per sincronizzare `node_modules`. Nel container di sviluppo utilizzato la cartella `node_modules` era già presente.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+npm run dev      # Avvia webpack-dev-server su http://localhost:3000 con history fallback
+npm run build    # Compila la build di produzione in dist/ e copia gli asset pubblici
+npm run preview  # Serve la build generata (fallback SPA incluso)
+npm run lint     # Esegue ESLint sulle estensioni .js/.jsx della cartella src
+npm test         # Avvia Jest tramite react-scripts per i test component/integration
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 4. Variabili d'ambiente
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- Definisci `VITE_API_BASE_URL` oppure il legacy `REACT_APP_API_BASE_URL` in un file `.env` per cambiare l'endpoint backend.
+- Il codice usa un resolver che controlla `import.meta.env` e, in fallback, `process.env`, così da funzionare sia con la nuova build Webpack sia con eventuali ambienti che usano ancora CRA.
 
-### `npm run eject`
+## 5. Asset e routing
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- Tutto ciò che si trova in `public/` viene copiato (eccetto `index.html`, gestito da HtmlWebpackPlugin).
+- Il dev server e il server di anteprima effettuano sempre il fallback verso `index.html`, consentendo il funzionamento del routing client-side (`react-router-dom`).
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 6. Requisiti
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- Node.js 18 o superiore.
+- npm 9+ (o il package manager preferito) già configurato con i pacchetti necessari.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 7. Troubleshooting
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- **Errore durante `npm install`**: se l'ambiente è offline, utilizza i pacchetti già presenti nella cartella `node_modules` oppure aggiorna il registry aziendale.
+- **Variabile API non definita**: assicurati di impostare `VITE_API_BASE_URL`/`REACT_APP_API_BASE_URL` prima di avviare build o dev server.
+- **Linting**: il comando `npm run lint` usa la configurazione `react-app` di ESLint (già inclusa da CRA). Assicurati che l'IDE non sovrascriva la config.

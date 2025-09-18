@@ -5,6 +5,6 @@
 import '@testing-library/jest-dom';
 
 // Polyfill for TextEncoder and TextDecoder for Jest
-import { TextEncoder, TextDecoder } from 'util';
+import { TextEncoder, TextDecoder } from 'node:util';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;

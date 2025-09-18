@@ -2,6 +2,13 @@
   "name": "rush-dashboard",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "build": "node scripts/build.js",
+    "preview": "node scripts/preview.js",
+    "lint": "eslint --ext .js,.jsx src",
+    "test": "react-scripts test"
+  },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -22,11 +29,8 @@
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+  "devDependencies": {
+    "eslint": "8.57.1"
   },
   "eslintConfig": {
     "extends": [
