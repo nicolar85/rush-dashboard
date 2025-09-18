@@ -258,7 +258,6 @@ class ApiService {
       const response = await this.makeRequest('login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
-        credentials: 'include',
       });
 
       if (!response.success) {
