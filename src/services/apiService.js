@@ -597,22 +597,34 @@ class ApiService {
       
       const files = await this.loadFiles();
       const fullData = {};
-      
-      // Carica dati completi per ogni file
-      for (const file of files) {
+
+      // Carica dati completi per ogni file in parallelo
+      const filePromises = files.map(async (file) => {
         try {
           const fileData = await this.getFileData(file.file_date);
-          fullData[file.file_date] = {
-            fileInfo: {
-              name: file.file_name,
-              displayDate: file.display_date,
-              uploadDate: file.upload_date,
-              size: file.file_size
-            },
-            ...fileData
+          return {
+            key: file.file_date,
+            value: {
+              fileInfo: {
+                name: file.file_name,
+                displayDate: file.display_date,
+                uploadDate: file.upload_date,
+                size: file.file_size
+              },
+              ...fileData
+            }
           };
         } catch (error) {
           logWarn(`⚠️ Errore caricamento file ${file.file_date}:`, error);
+          return null;
+        }
+      });
+
+      const fileResults = await Promise.all(filePromises);
+
+      for (const result of fileResults) {
+        if (result) {
+          fullData[result.key] = result.value;
         }
       }
       
