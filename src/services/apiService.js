@@ -7,9 +7,26 @@
 const API_BASE_URL = 'https://rush.nicolaruotolo.it/api';
 
 // 🔄 ALTERNATIVA: Se vuoi distinguere sviluppo/produzione
-// const API_BASE_URL = process.env.NODE_ENV === 'production' 
+// const API_BASE_URL = process.env.NODE_ENV === 'production'
 //   ? 'https://rush.nicolaruotolo.it/api'        // Produzione
 //   : 'https://rush.nicolaruotolo.it/api';       // Anche in sviluppo usa produzione
+
+const isProduction = process.env.NODE_ENV === 'production';
+const logDebug = (...args) => {
+  if (!isProduction) {
+    console.log(...args);
+  }
+};
+const logError = (...args) => {
+  if (!isProduction) {
+    console.error(...args);
+  }
+};
+const logWarn = (...args) => {
+  if (!isProduction) {
+    console.warn(...args);
+  }
+};
 
 class ApiError extends Error {
   constructor(message, statusCode, details = null) {
@@ -26,8 +43,8 @@ class ApiService {
     this.baseURL = API_BASE_URL;
     
     // 🐛 DEBUG: Mostra quale URL sta usando
-    console.log(`🔗 API URL configurata: ${this.baseURL}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logDebug(`🔗 API URL configurata: ${this.baseURL}`);
+    logDebug(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   }
 
   /**
@@ -47,12 +64,12 @@ class ApiService {
     const config = { ...defaultOptions, ...options };
 
     try {
-      console.log(`🚀 API Request: ${config.method || 'GET'} ${url}`);
+      logDebug(`🚀 API Request: ${config.method || 'GET'} ${url}`);
       
       const response = await fetch(url, config);
       
       // 🐛 DEBUG: Mostra la risposta
-      console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
+      logDebug(`📡 Response Status: ${response.status} ${response.statusText}`);
       
       const data = await response.json();
 
@@ -65,11 +82,11 @@ class ApiService {
         throw new ApiError(data.error || 'Errore della richiesta', response.status, data);
       }
 
-      console.log(`✅ API Response: ${endpoint}`, data);
+      logDebug(`✅ API Response: ${endpoint}`, data);
       return data;
       
     } catch (error) {
-      console.error(`❌ API Error: ${endpoint}`, error);
+      logError(`❌ API Error: ${endpoint}`, error);
       
       if (error instanceof ApiError) {
         throw error;
@@ -77,11 +94,11 @@ class ApiService {
       
       // Errori di rete o CORS
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error(`🌐 Network Error: Impossibile raggiungere ${url}`);
-        console.error('📋 Possibili cause:');
-        console.error('   - Server non raggiungibile');
-        console.error('   - Problemi CORS');
-        console.error('   - Connessione internet assente');
+        logError(`🌐 Network Error: Impossibile raggiungere ${url}`);
+        logError('📋 Possibili cause:');
+        logError('   - Server non raggiungibile');
+        logError('   - Problemi CORS');
+        logError('   - Connessione internet assente');
         
         throw new ApiError(
           'Errore di connessione. Controlla la connessione internet.', 
@@ -97,7 +114,7 @@ class ApiService {
    * Gestisce errori di autenticazione
    */
   handleAuthError() {
-    console.warn('🔒 Token non valido, logout automatico');
+    logWarn('🔒 Token non valido, logout automatico');
     this.logout();
     window.location.reload();
   }
@@ -130,7 +147,7 @@ class ApiService {
    */
   async login(username, password) {
     try {
-      console.log(`🔐 Tentativo login per: ${username}`);
+      logDebug(`🔐 Tentativo login per: ${username}`);
       
       const response = await this.makeRequest('login', {
         method: 'POST',
@@ -142,7 +159,7 @@ class ApiService {
         localStorage.setItem('rush_user', JSON.stringify(response.user));
         localStorage.setItem('rush_expires', response.expires_at);
         
-        console.log('✅ Login successful:', response.user);
+        logDebug('✅ Login successful:', response.user);
         
         return {
           success: true,
@@ -154,7 +171,7 @@ class ApiService {
       throw new Error(response.error || 'Login fallito');
       
     } catch (error) {
-      console.error('❌ Login failed:', error);
+      logError('❌ Login failed:', error);
       return {
         success: false,
         error: error.message
@@ -171,7 +188,7 @@ class ApiService {
         await this.makeRequest('logout', { method: 'POST' });
       }
     } catch (error) {
-      console.warn('Errore durante logout:', error);
+      logWarn('Errore durante logout:', error);
     } finally {
       this.setToken(null);
       localStorage.removeItem('rush_user');
@@ -225,10 +242,10 @@ class ApiService {
   async loadFiles() {
     try {
       const response = await this.makeRequest('uploads');
-      console.log('📁 Files loaded from server:', response.files?.length || 0);
+      logDebug('📁 Files loaded from server:', response.files?.length || 0);
       return response.files || [];
     } catch (error) {
-      console.error('❌ Error loading files:', error);
+      logError('❌ Error loading files:', error);
       throw error;
     }
   }
@@ -239,10 +256,10 @@ class ApiService {
   async getFileData(fileDate) {
     try {
       const response = await this.makeRequest(`file-data/${fileDate}`);
-      console.log(`📊 File data loaded for ${fileDate}:`, response);
+      logDebug(`📊 File data loaded for ${fileDate}:`, response);
       return response;
     } catch (error) {
-      console.error(`❌ Error loading file data for ${fileDate}:`, error);
+      logError(`❌ Error loading file data for ${fileDate}:`, error);
       throw error;
     }
   }
@@ -252,17 +269,17 @@ class ApiService {
    */
   async saveFile(fileData) {
     try {
-      console.log('💾 Saving file:', fileData.name, fileData.date);
+      logDebug('💾 Saving file:', fileData.name, fileData.date);
       
       const response = await this.makeRequest('upload', {
         method: 'POST',
         body: JSON.stringify({ fileData }),
       });
       
-      console.log('✅ File saved successfully:', response);
+      logDebug('✅ File saved successfully:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error saving file:', error);
+      logError('❌ Error saving file:', error);
       throw error;
     }
   }
@@ -272,16 +289,16 @@ class ApiService {
    */
   async deleteFile(fileDate) {
     try {
-      console.log(`🗑️ Deleting file: ${fileDate}`);
+      logDebug(`🗑️ Deleting file: ${fileDate}`);
       
       const response = await this.makeRequest(`uploads/${fileDate}`, {
         method: 'DELETE',
       });
       
-      console.log('✅ File deleted successfully:', response);
+      logDebug('✅ File deleted successfully:', response);
       return response;
     } catch (error) {
-      console.error(`❌ Error deleting file ${fileDate}:`, error);
+      logError(`❌ Error deleting file ${fileDate}:`, error);
       throw error;
     }
   }
@@ -295,7 +312,7 @@ class ApiService {
       formData.append('file', file);
       formData.append('data', JSON.stringify(parsedData));
       
-      console.log('📤 Uploading file:', file.name);
+      logDebug('📤 Uploading file:', file.name);
       
       const response = await this.makeRequest('upload-file', {
         method: 'POST',
@@ -306,10 +323,10 @@ class ApiService {
         }
       });
       
-      console.log('✅ File uploaded successfully:', response);
+      logDebug('✅ File uploaded successfully:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error uploading file:', error);
+      logError('❌ Error uploading file:', error);
       throw error;
     }
   }
@@ -324,10 +341,10 @@ class ApiService {
   async getDashboardStats() {
     try {
       const response = await this.makeRequest('dashboard/stats');
-      console.log('📈 Dashboard stats loaded:', response);
+      logDebug('📈 Dashboard stats loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading dashboard stats:', error);
+      logError('❌ Error loading dashboard stats:', error);
       throw error;
     }
   }
@@ -338,10 +355,10 @@ class ApiService {
   async getStatsForPeriod(startDate, endDate) {
     try {
       const response = await this.makeRequest(`stats/period?start=${startDate}&end=${endDate}`);
-      console.log(`📊 Period stats loaded (${startDate} - ${endDate}):`, response);
+      logDebug(`📊 Period stats loaded (${startDate} - ${endDate}):`, response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading period stats:', error);
+      logError('❌ Error loading period stats:', error);
       throw error;
     }
   }
@@ -353,10 +370,10 @@ class ApiService {
     try {
       const endpoint = fileDate ? `sm-ranking/${fileDate}` : 'sm-ranking';
       const response = await this.makeRequest(endpoint);
-      console.log('🏅 SM ranking loaded:', response);
+      logDebug('🏅 SM ranking loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading SM ranking:', error);
+      logError('❌ Error loading SM ranking:', error);
       throw error;
     }
   }
@@ -368,10 +385,10 @@ class ApiService {
     try {
       const endpoint = fileDate ? `agents/${fileDate}` : 'agents';
       const response = await this.makeRequest(endpoint);
-      console.log('👥 Agents details loaded:', response);
+      logDebug('👥 Agents details loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading agents details:', error);
+      logError('❌ Error loading agents details:', error);
       throw error;
     }
   }
@@ -383,10 +400,10 @@ class ApiService {
     try {
       const endpoint = fileDate ? `products/${fileDate}` : 'products';
       const response = await this.makeRequest(endpoint);
-      console.log('📦 Products analysis loaded:', response);
+      logDebug('📦 Products analysis loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading products analysis:', error);
+      logError('❌ Error loading products analysis:', error);
       throw error;
     }
   }
@@ -398,10 +415,10 @@ class ApiService {
     try {
       const endpoint = fileDate ? `new-clients/${fileDate}` : 'new-clients';
       const response = await this.makeRequest(endpoint);
-      console.log('🆕 New clients data loaded:', response);
+      logDebug('🆕 New clients data loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading new clients data:', error);
+      logError('❌ Error loading new clients data:', error);
       throw error;
     }
   }
@@ -413,10 +430,10 @@ class ApiService {
     try {
       const endpoint = fileDate ? `fastweb/${fileDate}` : 'fastweb';
       const response = await this.makeRequest(endpoint);
-      console.log('⚡ Fastweb data loaded:', response);
+      logDebug('⚡ Fastweb data loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading Fastweb data:', error);
+      logError('❌ Error loading Fastweb data:', error);
       throw error;
     }
   }
@@ -431,10 +448,10 @@ class ApiService {
   async getUserProfile() {
     try {
       const response = await this.makeRequest('profile');
-      console.log('👤 User profile loaded:', response);
+      logDebug('👤 User profile loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading user profile:', error);
+      logError('❌ Error loading user profile:', error);
       throw error;
     }
   }
@@ -448,10 +465,10 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify(profileData),
       });
-      console.log('✅ User profile updated:', response);
+      logDebug('✅ User profile updated:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error updating user profile:', error);
+      logError('❌ Error updating user profile:', error);
       throw error;
     }
   }
@@ -466,10 +483,10 @@ class ApiService {
   async healthCheck() {
     try {
       const response = await this.makeRequest('health');
-      console.log('💚 API health check passed:', response);
+      logDebug('💚 API health check passed:', response);
       return response;
     } catch (error) {
-      console.error('❤️‍🩹 API health check failed:', error);
+      logError('❤️‍🩹 API health check failed:', error);
       return { success: false, error: error.message };
     }
   }
@@ -480,10 +497,10 @@ class ApiService {
   async getSystemInfo() {
     try {
       const response = await this.makeRequest('system-info');
-      console.log('ℹ️ System info loaded:', response);
+      logDebug('ℹ️ System info loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading system info:', error);
+      logError('❌ Error loading system info:', error);
       throw error;
     }
   }
@@ -496,10 +513,10 @@ class ApiService {
       const response = await this.makeRequest('cleanup', {
         method: 'POST',
       });
-      console.log('🧹 System cleanup completed:', response);
+      logDebug('🧹 System cleanup completed:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error during system cleanup:', error);
+      logError('❌ Error during system cleanup:', error);
       throw error;
     }
   }
@@ -509,7 +526,7 @@ class ApiService {
    */
   async exportData() {
     try {
-      console.log('📥 Starting data export...');
+      logDebug('📥 Starting data export...');
       
       const files = await this.loadFiles();
       const fullData = {};
@@ -528,7 +545,7 @@ class ApiService {
             ...fileData
           };
         } catch (error) {
-          console.warn(`⚠️ Errore caricamento file ${file.file_date}:`, error);
+          logWarn(`⚠️ Errore caricamento file ${file.file_date}:`, error);
         }
       }
       
@@ -556,11 +573,11 @@ class ApiService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ Data export completed successfully');
+      logDebug('✅ Data export completed successfully');
       return { success: true, message: 'Export completato con successo' };
       
     } catch (error) {
-      console.error('❌ Error during data export:', error);
+      logError('❌ Error during data export:', error);
       throw error;
     }
   }
@@ -570,7 +587,7 @@ class ApiService {
    */
   async importData(backupFile) {
     try {
-      console.log('📤 Starting data import...');
+      logDebug('📤 Starting data import...');
       
       const formData = new FormData();
       formData.append('backup', backupFile);
@@ -583,11 +600,11 @@ class ApiService {
         }
       });
       
-      console.log('✅ Data import completed:', response);
+      logDebug('✅ Data import completed:', response);
       return response;
       
     } catch (error) {
-      console.error('❌ Error during data import:', error);
+      logError('❌ Error during data import:', error);
       throw error;
     }
   }
@@ -598,10 +615,10 @@ class ApiService {
   async getActivityLogs(limit = 100, offset = 0) {
     try {
       const response = await this.makeRequest(`logs?limit=${limit}&offset=${offset}`);
-      console.log('📋 Activity logs loaded:', response);
+      logDebug('📋 Activity logs loaded:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error loading activity logs:', error);
+      logError('❌ Error loading activity logs:', error);
       throw error;
     }
   }
@@ -615,10 +632,10 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ query, filters }),
       });
-      console.log('🔍 Search completed:', response);
+      logDebug('🔍 Search completed:', response);
       return response;
     } catch (error) {
-      console.error('❌ Error during search:', error);
+      logError('❌ Error during search:', error);
       throw error;
     }
   }
@@ -697,10 +714,10 @@ class ApiService {
           options
         }),
       });
-      console.log(`✅ Batch operation '${operation}' completed:`, response);
+      logDebug(`✅ Batch operation '${operation}' completed:`, response);
       return response;
     } catch (error) {
-      console.error(`❌ Error during batch operation '${operation}':`, error);
+      logError(`❌ Error during batch operation '${operation}':`, error);
       throw error;
     }
   }
