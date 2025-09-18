@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useData } from '../App';
 import { formatAgentName } from '../utils/formatter';
 import './ModernProductsAnalysis.css';
@@ -19,7 +19,8 @@ import {
   LineChart,
   Line,
   AreaChart,
-  Area
+  Area,
+  LabelList
 } from 'recharts';
 
 // Import icone esistenti + nuove
@@ -40,6 +41,16 @@ const formatCurrency = (value) => {
 
 const formatNumber = (value) => {
   return new Intl.NumberFormat('it-IT').format(value || 0);
+};
+
+const formatCount = (value, { includeUnit = false } = {}) => {
+  const numericValue = Number(value) || 0;
+  const formatted = formatNumber(numericValue);
+  if (!includeUnit) {
+    return formatted;
+  }
+  const unit = numericValue === 1 ? 'agente' : 'agenti';
+  return `${formatted} ${unit}`;
 };
 
 const ModernProductsAnalysis = () => {
@@ -200,6 +211,22 @@ const ModernProductsAnalysis = () => {
     }));
   }, [filteredProducts]);
 
+  const formatChartValue = useCallback(
+    (value, options = {}) => {
+      const numericValue = Number(value) || 0;
+      switch (chartMetric) {
+        case 'fatturato':
+          return formatCurrency(numericValue);
+        case 'agents':
+          return formatCount(numericValue, options);
+        case 'volume':
+        default:
+          return formatNumber(numericValue);
+      }
+    },
+    [chartMetric]
+  );
+
   const chartData = useMemo(() => {
     if (!filteredProductsArray || !Array.isArray(filteredProductsArray) || filteredProductsArray.length === 0) return [];
     try {
@@ -345,20 +372,34 @@ const ModernProductsAnalysis = () => {
                 <ResponsiveContainer>
                   { chartType === 'pie' ? (
                     <RechartsPieChart>
-                      <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120}>
+                      <Pie
+                        data={chartData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={120}
+                        label={({ value }) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })}
+                        labelLine={false}
+                      >
                         {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />))}
                       </Pie>
-                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Tooltip formatter={(value) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })} />
                       <Legend />
                     </RechartsPieChart>
                   ) : chartType === 'bar' ? (
                     <BarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" angle={-25} textAnchor="end" height={80} interval={0} fontSize={10} />
-                      <YAxis tickFormatter={(value) => formatNumber(value)} />
-                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <YAxis tickFormatter={(value) => formatChartValue(value)} />
+                      <Tooltip formatter={(value) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })} />
                       <Legend />
                       <Bar dataKey="value">
+                        <LabelList
+                          dataKey="value"
+                          position="top"
+                          formatter={(value) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })}
+                        />
                         {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
                       </Bar>
                     </BarChart>
@@ -366,19 +407,31 @@ const ModernProductsAnalysis = () => {
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(value) => formatNumber(value)} />
-                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <YAxis tickFormatter={(value) => formatChartValue(value)} />
+                      <Tooltip formatter={(value) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })} />
                       <Legend />
-                      <Line type="monotone" dataKey="value" stroke={CHART_COLORS[0]} />
+                      <Line type="monotone" dataKey="value" stroke={CHART_COLORS[0]}>
+                        <LabelList
+                          dataKey="value"
+                          position="top"
+                          formatter={(value) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })}
+                        />
+                      </Line>
                     </LineChart>
                   ) : ( // Area Chart
                     <AreaChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(value) => formatNumber(value)} />
-                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <YAxis tickFormatter={(value) => formatChartValue(value)} />
+                      <Tooltip formatter={(value) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })} />
                       <Legend />
-                      <Area type="monotone" dataKey="value" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.3} />
+                      <Area type="monotone" dataKey="value" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.3}>
+                        <LabelList
+                          dataKey="value"
+                          position="top"
+                          formatter={(value) => formatChartValue(value, { includeUnit: chartMetric === 'agents' })}
+                        />
+                      </Area>
                     </AreaChart>
                   )}
                 </ResponsiveContainer>
