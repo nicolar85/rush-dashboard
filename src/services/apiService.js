@@ -39,9 +39,12 @@ class ApiError extends Error {
 
 class ApiService {
   constructor() {
-    this.token = localStorage.getItem('rush_token');
+    this.token = null;
+    this.currentUser = null;
+    this.expiresAt = null;
+    this.sessionActive = false;
     this.baseURL = API_BASE_URL;
-    
+
     // 🐛 DEBUG: Mostra quale URL sta usando
     logDebug(`🔗 API URL configurata: ${this.baseURL}`);
     logDebug(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -52,20 +55,30 @@ class ApiService {
    */
   async makeRequest(endpoint, options = {}) {
     const url = `${this.baseURL}/${endpoint.replace(/^\//, '')}`;
-    
-    const defaultOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-        ...options.headers,
-      },
+
+    const {
+      skipAuthErrorHandling = false,
+      headers: customHeaders = {},
+      ...fetchOptions
+    } = options;
+
+    const isFormData = fetchOptions.body instanceof FormData;
+
+    const headers = {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...this.getAuthHeaders(),
+      ...customHeaders,
     };
 
-    const config = { ...defaultOptions, ...options };
+    const config = {
+      ...fetchOptions,
+      headers,
+      credentials: fetchOptions.credentials || 'include',
+    };
 
     try {
       logDebug(`🚀 API Request: ${config.method || 'GET'} ${url}`);
-      
+
       const response = await fetch(url, config);
       
       // 🐛 DEBUG: Mostra la risposta
@@ -75,10 +88,14 @@ class ApiService {
 
       if (!response.ok) {
         // Se token non valido, logout automatico
-        if (response.status === 401 && this.token) {
-          this.handleAuthError();
+        if (response.status === 401) {
+          if (skipAuthErrorHandling) {
+            this.clearSession();
+          } else {
+            this.handleAuthError();
+          }
         }
-        
+
         throw new ApiError(data.error || 'Errore della richiesta', response.status, data);
       }
 
@@ -113,10 +130,12 @@ class ApiService {
   /**
    * Gestisce errori di autenticazione
    */
-  handleAuthError() {
+  handleAuthError({ shouldReload = true } = {}) {
     logWarn('🔒 Token non valido, logout automatico');
-    this.logout();
-    window.location.reload();
+    this.clearSession();
+    if (shouldReload) {
+      window.location.reload();
+    }
   }
 
   /**
@@ -126,16 +145,18 @@ class ApiService {
     return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
   }
 
+  clearSession() {
+    this.token = null;
+    this.currentUser = null;
+    this.expiresAt = null;
+    this.sessionActive = false;
+  }
+
   /**
    * Salva il token di autenticazione
    */
   setToken(token) {
-    this.token = token;
-    if (token) {
-      localStorage.setItem('rush_token', token);
-    } else {
-      localStorage.removeItem('rush_token');
-    }
+    this.token = token || null;
   }
 
   // ================================
@@ -154,22 +175,23 @@ class ApiService {
         body: JSON.stringify({ username, password }),
       });
 
-      if (response.success && response.token) {
-        this.setToken(response.token);
-        localStorage.setItem('rush_user', JSON.stringify(response.user));
-        localStorage.setItem('rush_expires', response.expires_at);
-        
-        logDebug('✅ Login successful:', response.user);
-        
-        return {
-          success: true,
-          user: response.user,
-          token: response.token
-        };
+      if (!response.success) {
+        throw new Error(response.error || 'Login fallito');
       }
-      
-      throw new Error(response.error || 'Login fallito');
-      
+
+      this.setToken(response.token || null);
+      this.currentUser = response.user || null;
+      this.expiresAt = response.expires_at || null;
+      this.sessionActive = true;
+
+      logDebug('✅ Login successful:', response.user);
+
+      return {
+        success: true,
+        user: this.currentUser,
+        token: this.token
+      };
+
     } catch (error) {
       logError('❌ Login failed:', error);
       return {
@@ -184,15 +206,11 @@ class ApiService {
    */
   async logout() {
     try {
-      if (this.token) {
-        await this.makeRequest('logout', { method: 'POST' });
-      }
+      await this.makeRequest('logout', { method: 'POST', skipAuthErrorHandling: true });
     } catch (error) {
       logWarn('Errore durante logout:', error);
     } finally {
-      this.setToken(null);
-      localStorage.removeItem('rush_user');
-      localStorage.removeItem('rush_expires');
+      this.clearSession();
     }
   }
 
@@ -200,23 +218,72 @@ class ApiService {
    * Controlla se l'utente è autenticato
    */
   isAuthenticated() {
-    if (!this.token) return false;
-    
-    const expires = localStorage.getItem('rush_expires');
-    if (expires && new Date(expires) <= new Date()) {
-      this.logout();
-      return false;
+    if (this.token) {
+      if (this.expiresAt && new Date(this.expiresAt) <= new Date()) {
+        this.clearSession();
+        return false;
+      }
+      return true;
     }
-    
-    return true;
+
+    if (this.sessionActive) {
+      if (this.expiresAt && new Date(this.expiresAt) <= new Date()) {
+        this.clearSession();
+        return false;
+      }
+      return true;
+    }
+
+    return false;
   }
 
   /**
    * Ottieni utente corrente
    */
   getCurrentUser() {
-    const user = localStorage.getItem('rush_user');
-    return user ? JSON.parse(user) : null;
+    return this.currentUser;
+  }
+
+  /**
+   * Prova a ripristinare una sessione attiva utilizzando cookie/token
+   */
+  async restoreSession() {
+    try {
+      const response = await this.makeRequest('profile', { skipAuthErrorHandling: true });
+
+      if (!response) {
+        this.clearSession();
+        return { success: false };
+      }
+
+      const user = response.user || response.profile || response.data || null;
+
+      if (!user) {
+        this.clearSession();
+        return { success: false };
+      }
+
+      this.currentUser = user;
+      this.sessionActive = true;
+
+      if (response.token) {
+        this.setToken(response.token);
+      }
+
+      if (response.expires_at) {
+        this.expiresAt = response.expires_at;
+      }
+
+      return { success: true, user };
+
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 401) {
+        this.clearSession();
+        return { success: false };
+      }
+
+      throw error;
+    }
   }
 
   /**
