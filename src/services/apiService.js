@@ -137,10 +137,13 @@ class ApiService {
     const isFormData = fetchOptions.body instanceof FormData;
 
     const headers = {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...this.getAuthHeaders(),
       ...customHeaders,
     };
+
+    if (fetchOptions.body !== undefined && fetchOptions.body !== null && !isFormData && !('Content-Type' in headers)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     let credentials = requestedCredentials;
 
