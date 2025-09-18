@@ -336,7 +336,6 @@ class ApiService {
     try {
       const response = await this.makeRequest('profile', {
         skipAuthErrorHandling: true,
-        credentials: 'include',
       });
 
       if (!response) {
