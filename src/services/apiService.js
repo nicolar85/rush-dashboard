@@ -28,21 +28,76 @@ const API_BASE_URL = runtimeEnv.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 // Imposta VITE_API_BASE_URL nello specifico file `.env` per l'ambiente desiderato.
 
 const isProduction = mode === 'production';
-const logDebug = (...args) => {
-  if (!isProduction) {
-    console.log(...args);
+
+const SENSITIVE_KEYS = new Set([
+  'token',
+  'authorization',
+  'password',
+  'sessiontoken',
+  'session_token',
+  'auth',
+]);
+
+const sanitizeForLogging = (value, seen = new WeakSet(), depth = 0) => {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      stack: isProduction ? undefined : value.stack,
+    };
+  }
+
+  if (seen.has(value)) {
+    return '[Circular]';
+  }
+
+  if (depth > 3) {
+    return '[Object]';
+  }
+
+  seen.add(value);
+
+  try {
+    if (Array.isArray(value)) {
+      return value.map((item) => sanitizeForLogging(item, seen, depth + 1));
+    }
+
+    return Object.entries(value).reduce((acc, [key, val]) => {
+      const normalizedKey = String(key).toLowerCase();
+
+      if (SENSITIVE_KEYS.has(normalizedKey)) {
+        acc[key] = '[REDACTED]';
+        return acc;
+      }
+
+      acc[key] = sanitizeForLogging(val, seen, depth + 1);
+      return acc;
+    }, {});
+  } finally {
+    seen.delete(value);
   }
 };
-const logError = (...args) => {
-  if (!isProduction) {
-    console.error(...args);
+
+const createLogger = (method) => (...args) => {
+  if (isProduction) {
+    return;
   }
+
+  const sanitizedArgs = args.map((arg) => sanitizeForLogging(arg));
+  method(...sanitizedArgs);
 };
-const logWarn = (...args) => {
-  if (!isProduction) {
-    console.warn(...args);
-  }
-};
+
+const logDebug = createLogger(console.log.bind(console));
+const logError = createLogger(console.error.bind(console));
+const logWarn = createLogger(console.warn.bind(console));
 
 class ApiError extends Error {
   constructor(message, statusCode, details = null) {
@@ -131,7 +186,7 @@ class ApiService {
 
       logDebug(`✅ API Response: ${endpoint}`, data);
       return data;
-      
+
     } catch (error) {
       logError(`❌ API Error: ${endpoint}`, error);
       
@@ -199,7 +254,7 @@ class ApiService {
   async login(username, password) {
     try {
       logDebug(`🔐 Tentativo login per: ${username}`);
-      
+
       const response = await this.makeRequest('login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
@@ -215,7 +270,7 @@ class ApiService {
       this.expiresAt = response.expires_at || null;
       this.sessionActive = true;
 
-      logDebug('✅ Login successful:', response.user);
+      logDebug('✅ Login successful for:', response.user?.username || 'utente sconosciuto');
 
       return {
         success: true,
