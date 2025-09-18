@@ -24,6 +24,18 @@ const ColumnMappingModal = ({
     }));
   };
 
+  const getColumnPatterns = (column) => {
+    if (Array.isArray(column?.patterns)) {
+      return column.patterns;
+    }
+
+    if (Array.isArray(column?.possibleNames)) {
+      return column.possibleNames;
+    }
+
+    return [];
+  };
+
   const handleConfirmMapping = async () => {
     setIsProcessing(true);
     try {
@@ -79,35 +91,42 @@ const ColumnMappingModal = ({
               </h3>
               
               <div className="space-y-3">
-                {missingColumns.map((column, index) => (
-                  <div key={index} className="bg-white rounded p-3 border">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900">
-                          {column.field}
-                        </span>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Cercava: {column.possibleNames.join(', ')}
-                        </p>
-                      </div>
-                      
-                      {/* Manual Mapping Dropdown - Per implementazione futura */}
-                      <div className="ml-4 min-w-48">
-                        <select
-                          className="w-full p-2 border rounded text-sm bg-gray-50"
-                          value={manualMapping[column.field] || ''}
-                          onChange={(e) => handleManualMapping(column.field, e.target.value)}
-                          disabled={true} // Temporaneamente disabilitato
-                        >
-                          <option value="">🚧 Mappatura manuale non ancora implementata</option>
-                          {availableColumns.map((col, i) => (
-                            <option key={i} value={col}>{col}</option>
-                          ))}
-                        </select>
+                {missingColumns.map((column, index) => {
+                  const columnPatterns = getColumnPatterns(column);
+                  const patternsDescription = columnPatterns.length > 0
+                    ? columnPatterns.join(', ')
+                    : 'Nessun pattern disponibile';
+
+                  return (
+                    <div key={index} className="bg-white rounded p-3 border">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <span className="font-medium text-gray-900">
+                            {column.field}
+                          </span>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Cercava: {patternsDescription}
+                          </p>
+                        </div>
+
+                        {/* Manual Mapping Dropdown - Per implementazione futura */}
+                        <div className="ml-4 min-w-48">
+                          <select
+                            className="w-full p-2 border rounded text-sm bg-gray-50"
+                            value={manualMapping[column.field] || ''}
+                            onChange={(e) => handleManualMapping(column.field, e.target.value)}
+                            disabled={true} // Temporaneamente disabilitato
+                          >
+                            <option value="">🚧 Mappatura manuale non ancora implementata</option>
+                            {availableColumns.map((col, i) => (
+                              <option key={i} value={col}>{col}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
