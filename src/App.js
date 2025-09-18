@@ -695,21 +695,39 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        let user = null;
+
         if (apiService.isAuthenticated()) {
-          const user = apiService.getCurrentUser();
-          if (user) {
-            setCurrentUser(user);
-            setIsAuthenticated(true);
-            
-            // Test connessione API
-            try {
-              await apiService.healthCheck();
-              console.log('✅ Connessione API verificata');
-            } catch (error) {
-              console.warn('⚠️ Problema connessione API:', error);
-              toast.warning('Connessione al server instabile');
+          user = apiService.getCurrentUser();
+
+          if (!user) {
+            const session = await apiService.restoreSession();
+            if (session.success) {
+              user = session.user;
             }
           }
+        } else {
+          const session = await apiService.restoreSession();
+          if (session.success) {
+            user = session.user;
+          }
+        }
+
+        if (user) {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+
+          // Test connessione API
+          try {
+            await apiService.healthCheck();
+            console.log('✅ Connessione API verificata');
+          } catch (error) {
+            console.warn('⚠️ Problema connessione API:', error);
+            toast.warning('Connessione al server instabile');
+          }
+        } else {
+          setCurrentUser(null);
+          setIsAuthenticated(false);
         }
       } catch (error) {
         console.error('Errore verifica autenticazione:', error);
