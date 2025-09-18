@@ -75,6 +75,7 @@ class ApiService {
     const {
       skipAuthErrorHandling = false,
       headers: customHeaders = {},
+      credentials: requestedCredentials,
       ...fetchOptions
     } = options;
 
@@ -86,10 +87,23 @@ class ApiService {
       ...customHeaders,
     };
 
+    let credentials = requestedCredentials;
+
+    if (credentials === undefined && typeof window !== 'undefined') {
+      try {
+        const baseOrigin = new URL(this.baseURL, window.location.href).origin;
+        if (baseOrigin === window.location.origin) {
+          credentials = 'include';
+        }
+      } catch (error) {
+        logWarn('Impossibile determinare l\'origin dell\'API:', error);
+      }
+    }
+
     const config = {
       ...fetchOptions,
       headers,
-      credentials: fetchOptions.credentials || 'include',
+      ...(credentials !== undefined ? { credentials } : {}),
     };
 
     try {
@@ -189,6 +203,7 @@ class ApiService {
       const response = await this.makeRequest('login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
+        credentials: 'include',
       });
 
       if (!response.success) {
@@ -265,7 +280,10 @@ class ApiService {
    */
   async restoreSession() {
     try {
-      const response = await this.makeRequest('profile', { skipAuthErrorHandling: true });
+      const response = await this.makeRequest('profile', {
+        skipAuthErrorHandling: true,
+        credentials: 'include',
+      });
 
       if (!response) {
         this.clearSession();
