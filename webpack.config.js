@@ -35,7 +35,16 @@ module.exports = (_env = {}, argv = {}) => {
           use: {
             loader: require.resolve('babel-loader'),
             options: {
-              presets: [require.resolve('babel-preset-react-app')],
+              presets: [
+                require.resolve('@babel/preset-env'),
+                [
+                  require.resolve('@babel/preset-react'),
+                  {
+                    runtime: 'automatic',
+                    importSource: 'react',
+                  },
+                ],
+              ],
               cacheDirectory: true,
               cacheCompression: false,
             },
