@@ -16,10 +16,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// Error reporting per sviluppo
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // Set to 0 in production
-ini_set('log_errors', 1);
+// Configurazione debug basata su variabile d'ambiente
+$debugEnv = getenv('APP_DEBUG');
+$debugValue = filter_var($debugEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+define('APP_DEBUG', $debugValue === null ? false : $debugValue);
+
+if (APP_DEBUG) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+} else {
+    error_reporting(0);
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+}
+
+ini_set('log_errors', '1');
 
 // ================================
 // ⚠️ CONFIGURAZIONE DATABASE - CAMBIA QUI ⚠️
@@ -34,12 +46,11 @@ function requireEnv(string $key): string
 
     if ($value === false || $value === '') {
         error_log("Missing required environment variable: {$key}");
-        http_response_code(500);
-        echo json_encode([
-            'error' => 'Configurazione ambiente non valida',
-            'details' => "Variabile {$key} non configurata"
-        ]);
-        exit;
+        respondWithError(
+            500,
+            'Configurazione ambiente non valida',
+            "Variabile {$key} non configurata"
+        );
     }
 
     return $value;
@@ -82,9 +93,7 @@ try {
     );
 } catch(PDOException $e) {
     error_log('Database connection failed: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['error' => 'Errore di connessione al database']);
-    exit;
+    respondWithError(500, 'Errore di connessione al database', $e->getMessage());
 }
 
 // ================================
@@ -148,10 +157,20 @@ function requireAuth($pdo) {
 
 function respondWithError($code, $message, $details = null) {
     http_response_code($code);
-    $response = ['error' => $message];
-    if ($details && (error_reporting() & E_ALL)) { // Solo in sviluppo
+
+    $isDebug = defined('APP_DEBUG') ? APP_DEBUG : false;
+    $responseMessage = $message;
+
+    if (!$isDebug && $details !== null) {
+        $responseMessage = 'Si è verificato un errore inatteso.';
+    }
+
+    $response = ['error' => $responseMessage];
+
+    if ($isDebug && $details !== null) {
         $response['details'] = $details;
     }
+
     echo json_encode($response);
     exit;
 }
@@ -227,7 +246,7 @@ try {
     }
 } catch (Exception $e) {
     error_log("API Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-    respondWithError(500, 'Errore interno del server');
+    respondWithError(500, 'Errore interno del server', $e->getMessage());
 }
 
 // ================================
@@ -423,7 +442,7 @@ function handleLogin($pdo) {
         }
     } catch (Exception $e) {
         error_log("Login error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante il login');
+        respondWithError(500, 'Errore durante il login', $e->getMessage());
     }
 }
 
@@ -454,7 +473,7 @@ function handleLogout($pdo) {
             respondWithSuccess([], 'Logout effettuato con successo');
         } catch (Exception $e) {
             error_log("Logout error: " . $e->getMessage());
-            respondWithError(500, 'Errore durante il logout');
+            respondWithError(500, 'Errore durante il logout', $e->getMessage());
         }
     } else {
         respondWithError(400, 'Token non fornito');
@@ -493,7 +512,7 @@ function getUserProfile($pdo) {
         
     } catch (Exception $e) {
         error_log("Get profile error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante il recupero del profilo');
+        respondWithError(500, 'Errore durante il recupero del profilo', $e->getMessage());
     }
 }
 
@@ -524,7 +543,7 @@ function getAllUsers($pdo, $user) {
         
     } catch (Exception $e) {
         error_log("Get users error: " . $e->getMessage());
-        respondWithError(500, 'Errore nel caricamento degli utenti');
+        respondWithError(500, 'Errore nel caricamento degli utenti', $e->getMessage());
     }
 }
 
@@ -612,7 +631,7 @@ function createUser($pdo, $currentUser) {
         
     } catch (Exception $e) {
         error_log("Create user error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante la creazione dell\'utente');
+        respondWithError(500, 'Errore durante la creazione dell\'utente', $e->getMessage());
     }
 }
 
@@ -676,7 +695,7 @@ function updateUserPassword($pdo, $currentUser, $userId) {
         
     } catch (Exception $e) {
         error_log("Update password error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'aggiornamento della password');
+        respondWithError(500, 'Errore durante l\'aggiornamento della password', $e->getMessage());
     }
 }
 
@@ -741,7 +760,7 @@ function updateUserRole($pdo, $currentUser, $userId) {
         
     } catch (Exception $e) {
         error_log("Update role error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'aggiornamento del ruolo');
+        respondWithError(500, 'Errore durante l\'aggiornamento del ruolo', $e->getMessage());
     }
 }
 
@@ -832,7 +851,7 @@ function deleteUser($pdo, $currentUser, $userId) {
         
     } catch (Exception $e) {
         error_log("Delete user error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'eliminazione dell\'utente');
+        respondWithError(500, 'Errore durante l\'eliminazione dell\'utente', $e->getMessage());
     }
 }
 
@@ -875,7 +894,7 @@ function getAllFiles($pdo, $user) {
         
     } catch (Exception $e) {
         error_log("Get files error: " . $e->getMessage());
-        respondWithError(500, 'Errore nel caricamento dei file');
+        respondWithError(500, 'Errore nel caricamento dei file', $e->getMessage());
     }
 }
 
@@ -903,7 +922,7 @@ function getFileData($pdo, $user, $fileDate) {
         
     } catch (Exception $e) {
         error_log("Get file data error: " . $e->getMessage());
-        respondWithError(500, 'Errore nel caricamento dei dati del file');
+        respondWithError(500, 'Errore nel caricamento dei dati del file', $e->getMessage());
     }
 }
 
@@ -1036,7 +1055,7 @@ function handleFileUpload($pdo, $user) {
         
     } catch (Exception $e) {
         error_log("File upload error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante il caricamento del file');
+        respondWithError(500, 'Errore durante il caricamento del file', $e->getMessage());
     }
 }
 
@@ -1070,7 +1089,7 @@ function deleteFile($pdo, $user, $fileDate) {
         
     } catch (Exception $e) {
         error_log("Delete file error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'eliminazione del file');
+        respondWithError(500, 'Errore durante l\'eliminazione del file', $e->getMessage());
     }
 }
 
