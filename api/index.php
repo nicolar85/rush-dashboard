@@ -16,22 +16,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// Configurazione debug basata su variabile d'ambiente
-$debugEnv = getenv('APP_DEBUG');
-$debugValue = filter_var($debugEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-define('APP_DEBUG', $debugValue === null ? false : $debugValue);
+// Error reporting per sviluppo
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Set to 0 in production
+ini_set('log_errors', 1);
 
-if (APP_DEBUG) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', '1');
-    ini_set('display_startup_errors', '1');
-} else {
-    error_reporting(0);
-    ini_set('display_errors', '0');
-    ini_set('display_startup_errors', '0');
+// ================================
+// CARICAMENTO FILE .ENV
+// ================================
+function loadEnvFile($filePath) {
+    if (!file_exists($filePath)) {
+        error_log("File .env non trovato: $filePath");
+        return false;
+    }
+    
+    $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos($line, '=') !== false && $line[0] !== '#') {
+            list($name, $value) = explode('=', $line, 2);
+            $name = trim($name);
+            $value = trim($value);
+            
+            // Rimuovi le virgolette se presenti
+            $value = trim($value, '"\'');
+            
+            // Imposta la variabile d'ambiente se non è già definita
+            if (!getenv($name)) {
+                putenv("$name=$value");
+                $_ENV[$name] = $value;
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+    return true;
 }
 
-ini_set('log_errors', '1');
+// Prova a caricare il file .env dalla directory corrente
+$envPaths = [
+    __DIR__ . '/.env',
+    dirname(__DIR__) . '/.env',
+    __DIR__ . '/backend.env'
+];
+
+foreach ($envPaths as $envPath) {
+    if (loadEnvFile($envPath)) {
+        break;
+    }
+}
 
 // ================================
 // ⚠️ CONFIGURAZIONE DATABASE - CAMBIA QUI ⚠️
@@ -46,11 +77,12 @@ function requireEnv(string $key): string
 
     if ($value === false || $value === '') {
         error_log("Missing required environment variable: {$key}");
-        respondWithError(
-            500,
-            'Configurazione ambiente non valida',
-            "Variabile {$key} non configurata"
-        );
+        http_response_code(500);
+        echo json_encode([
+            'error' => 'Configurazione ambiente non valida',
+            'details' => "Variabile {$key} non configurata"
+        ]);
+        exit;
     }
 
     return $value;
@@ -93,7 +125,9 @@ try {
     );
 } catch(PDOException $e) {
     error_log('Database connection failed: ' . $e->getMessage());
-    respondWithError(500, 'Errore di connessione al database', $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['error' => 'Errore di connessione al database']);
+    exit;
 }
 
 // ================================
@@ -157,20 +191,10 @@ function requireAuth($pdo) {
 
 function respondWithError($code, $message, $details = null) {
     http_response_code($code);
-
-    $isDebug = defined('APP_DEBUG') ? APP_DEBUG : false;
-    $responseMessage = $message;
-
-    if (!$isDebug && $details !== null) {
-        $responseMessage = 'Si è verificato un errore inatteso.';
-    }
-
-    $response = ['error' => $responseMessage];
-
-    if ($isDebug && $details !== null) {
+    $response = ['error' => $message];
+    if ($details && (error_reporting() & E_ALL)) { // Solo in sviluppo
         $response['details'] = $details;
     }
-
     echo json_encode($response);
     exit;
 }
@@ -181,30 +205,6 @@ function respondWithSuccess($data = [], $message = null) {
     if (!empty($data)) $response = array_merge($response, $data);
     echo json_encode($response);
     exit;
-}
-
-function enforceAdminAccess($pdo, $user, $action = 'ADMIN_ACTION_BLOCKED', $context = 'azione riservata') {
-    $role = $user['role'] ?? 'sconosciuto';
-
-    if ($role !== 'admin') {
-        $username = $user['username'] ?? 'sconosciuto';
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-
-        logActivity(
-            $pdo,
-            $user['id'] ?? null,
-            $action,
-            sprintf(
-                'Tentativo non autorizzato di %s da %s (ruolo: %s, IP: %s)',
-                $context,
-                $username,
-                $role,
-                $ip
-            )
-        );
-
-        respondWithError(403, 'Accesso negato. Solo gli amministratori possono caricare o aggiornare file.');
-    }
 }
 
 // ================================
@@ -246,7 +246,7 @@ try {
     }
 } catch (Exception $e) {
     error_log("API Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-    respondWithError(500, 'Errore interno del server', $e->getMessage());
+    respondWithError(500, 'Errore interno del server');
 }
 
 // ================================
@@ -306,7 +306,6 @@ function handlePostRequests($pdo, $pathParts, $endpoint) {
             
         case 'upload':
             $user = requireAuth($pdo);
-            enforceAdminAccess($pdo, $user, 'FILE_UPLOAD_BLOCKED', 'caricamento/aggiornamento file');
             handleFileUpload($pdo, $user);
             break;
             
@@ -442,7 +441,7 @@ function handleLogin($pdo) {
         }
     } catch (Exception $e) {
         error_log("Login error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante il login', $e->getMessage());
+        respondWithError(500, 'Errore durante il login');
     }
 }
 
@@ -473,7 +472,7 @@ function handleLogout($pdo) {
             respondWithSuccess([], 'Logout effettuato con successo');
         } catch (Exception $e) {
             error_log("Logout error: " . $e->getMessage());
-            respondWithError(500, 'Errore durante il logout', $e->getMessage());
+            respondWithError(500, 'Errore durante il logout');
         }
     } else {
         respondWithError(400, 'Token non fornito');
@@ -512,7 +511,7 @@ function getUserProfile($pdo) {
         
     } catch (Exception $e) {
         error_log("Get profile error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante il recupero del profilo', $e->getMessage());
+        respondWithError(500, 'Errore durante il recupero del profilo');
     }
 }
 
@@ -543,7 +542,7 @@ function getAllUsers($pdo, $user) {
         
     } catch (Exception $e) {
         error_log("Get users error: " . $e->getMessage());
-        respondWithError(500, 'Errore nel caricamento degli utenti', $e->getMessage());
+        respondWithError(500, 'Errore nel caricamento degli utenti');
     }
 }
 
@@ -631,7 +630,7 @@ function createUser($pdo, $currentUser) {
         
     } catch (Exception $e) {
         error_log("Create user error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante la creazione dell\'utente', $e->getMessage());
+        respondWithError(500, 'Errore durante la creazione dell\'utente');
     }
 }
 
@@ -695,7 +694,7 @@ function updateUserPassword($pdo, $currentUser, $userId) {
         
     } catch (Exception $e) {
         error_log("Update password error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'aggiornamento della password', $e->getMessage());
+        respondWithError(500, 'Errore durante l\'aggiornamento della password');
     }
 }
 
@@ -760,7 +759,7 @@ function updateUserRole($pdo, $currentUser, $userId) {
         
     } catch (Exception $e) {
         error_log("Update role error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'aggiornamento del ruolo', $e->getMessage());
+        respondWithError(500, 'Errore durante l\'aggiornamento del ruolo');
     }
 }
 
@@ -851,7 +850,7 @@ function deleteUser($pdo, $currentUser, $userId) {
         
     } catch (Exception $e) {
         error_log("Delete user error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'eliminazione dell\'utente', $e->getMessage());
+        respondWithError(500, 'Errore durante l\'eliminazione dell\'utente');
     }
 }
 
@@ -862,12 +861,12 @@ function deleteUser($pdo, $currentUser, $userId) {
 function getAllFiles($pdo, $user) {
     try {
         $stmt = $pdo->prepare("
-            SELECT
-                uf.id, uf.file_name, uf.file_date, uf.display_date,
-                uf.file_size, uf.upload_date, uf.total_agents,
+            SELECT 
+                uf.id, uf.file_name, uf.file_date, uf.display_date, 
+                uf.file_size, uf.upload_date, uf.total_agents, 
                 uf.total_sms, uf.total_revenue, uf.total_inflow,
                 uf.total_new_clients, uf.total_fastweb,
-                COALESCE(u.username, 'Utente non disponibile') AS uploaded_by_name
+                COALESCE(u.username, 'Utente non disponibile') as uploaded_by_name
             FROM uploaded_files uf
             LEFT JOIN users u ON uf.uploaded_by = u.id
             ORDER BY uf.upload_date DESC
@@ -875,6 +874,11 @@ function getAllFiles($pdo, $user) {
         
         $stmt->execute();
         $files = $stmt->fetchAll();
+        
+        // Se non ci sono risultati, restituisci array vuoto
+        if (!$files) {
+            $files = [];
+        }
         
         // Formatta le date e i numeri
         foreach ($files as &$file) {
@@ -885,7 +889,6 @@ function getAllFiles($pdo, $user) {
             $file['total_inflow'] = (float) $file['total_inflow'];
             $file['total_new_clients'] = (int) $file['total_new_clients'];
             $file['total_fastweb'] = (int) $file['total_fastweb'];
-            $file['uploaded_by_name'] = $file['uploaded_by_name'] ?? 'Utente non disponibile';
         }
         
         respondWithSuccess([
@@ -895,7 +898,8 @@ function getAllFiles($pdo, $user) {
         
     } catch (Exception $e) {
         error_log("Get files error: " . $e->getMessage());
-        respondWithError(500, 'Errore nel caricamento dei file', $e->getMessage());
+        // Se la tabella non esiste, restituisci array vuoto
+        respondWithSuccess(['files' => [], 'count' => 0]);
     }
 }
 
@@ -923,13 +927,11 @@ function getFileData($pdo, $user, $fileDate) {
         
     } catch (Exception $e) {
         error_log("Get file data error: " . $e->getMessage());
-        respondWithError(500, 'Errore nel caricamento dei dati del file', $e->getMessage());
+        respondWithError(500, 'Errore nel caricamento dei dati del file');
     }
 }
 
 function handleFileUpload($pdo, $user) {
-    enforceAdminAccess($pdo, $user, 'FILE_UPLOAD_BLOCKED', 'upload file (invocazione diretta)');
-
     try {
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -1056,7 +1058,7 @@ function handleFileUpload($pdo, $user) {
         
     } catch (Exception $e) {
         error_log("File upload error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante il caricamento del file', $e->getMessage());
+        respondWithError(500, 'Errore durante il caricamento del file');
     }
 }
 
@@ -1090,13 +1092,8 @@ function deleteFile($pdo, $user, $fileDate) {
         
     } catch (Exception $e) {
         error_log("Delete file error: " . $e->getMessage());
-        respondWithError(500, 'Errore durante l\'eliminazione del file', $e->getMessage());
+        respondWithError(500, 'Errore durante l\'eliminazione del file');
     }
 }
-
-// ================================
-// FALLBACK 404
-// ================================
-respondWithError(404, 'Endpoint non trovato: ' . $endpoint);
 
 ?>
