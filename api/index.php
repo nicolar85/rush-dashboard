@@ -862,14 +862,14 @@ function deleteUser($pdo, $currentUser, $userId) {
 function getAllFiles($pdo, $user) {
     try {
         $stmt = $pdo->prepare("
-            SELECT 
-                uf.id, uf.file_name, uf.file_date, uf.display_date, 
-                uf.file_size, uf.upload_date, uf.total_agents, 
+            SELECT
+                uf.id, uf.file_name, uf.file_date, uf.display_date,
+                uf.file_size, uf.upload_date, uf.total_agents,
                 uf.total_sms, uf.total_revenue, uf.total_inflow,
                 uf.total_new_clients, uf.total_fastweb,
-                u.username as uploaded_by_name
+                COALESCE(u.username, 'Utente non disponibile') AS uploaded_by_name
             FROM uploaded_files uf
-            JOIN users u ON uf.uploaded_by = u.id
+            LEFT JOIN users u ON uf.uploaded_by = u.id
             ORDER BY uf.upload_date DESC
         ");
         
@@ -885,6 +885,7 @@ function getAllFiles($pdo, $user) {
             $file['total_inflow'] = (float) $file['total_inflow'];
             $file['total_new_clients'] = (int) $file['total_new_clients'];
             $file['total_fastweb'] = (int) $file['total_fastweb'];
+            $file['uploaded_by_name'] = $file['uploaded_by_name'] ?? 'Utente non disponibile';
         }
         
         respondWithSuccess([
