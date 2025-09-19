@@ -172,11 +172,29 @@ class ApiService {
       logDebug(`🚀 API Request: ${config.method || 'GET'} ${url}`);
 
       const response = await fetch(url, config);
-      
+
       // 🐛 DEBUG: Mostra la risposta
       logDebug(`📡 Response Status: ${response.status} ${response.statusText}`);
-      
-      const data = await response.json();
+
+      const contentType = response.headers.get('Content-Type') || '';
+      const rawBody = await response.text();
+      const trimmedBody = rawBody.trim();
+      const shouldAttemptJsonParse =
+        trimmedBody.length > 0 &&
+        (contentType.toLowerCase().includes('application/json') ||
+          trimmedBody.startsWith('{') ||
+          trimmedBody.startsWith('['));
+
+      let data = null;
+
+      if (shouldAttemptJsonParse) {
+        try {
+          data = JSON.parse(trimmedBody);
+        } catch (parseError) {
+          logWarn('Impossibile analizzare la risposta JSON:', parseError);
+          logWarn('Risposta ricevuta:', trimmedBody);
+        }
+      }
 
       if (!response.ok) {
         // Se token non valido, logout automatico
@@ -188,11 +206,29 @@ class ApiService {
           }
         }
 
-        throw new ApiError(data.error || 'Errore della richiesta', response.status, data);
+        const errorMessage =
+          (data && (data.error || data.message)) ||
+          trimmedBody ||
+          response.statusText ||
+          `HTTP error ${response.status}`;
+
+        const errorDetails = data ?? (trimmedBody ? { raw: trimmedBody } : null);
+
+        throw new ApiError(errorMessage, response.status, errorDetails);
       }
 
-      logDebug(`✅ API Response: ${endpoint}`, data);
-      return data;
+      if (data !== null) {
+        logDebug(`✅ API Response (JSON): ${endpoint}`, data);
+        return data;
+      }
+
+      if (trimmedBody.length === 0) {
+        logDebug(`✅ API Response: ${endpoint} (nessun contenuto)`);
+        return null;
+      }
+
+      logDebug(`✅ API Response (testo): ${endpoint}`, trimmedBody);
+      return rawBody;
 
     } catch (error) {
       logError(`❌ API Error: ${endpoint}`, error);
