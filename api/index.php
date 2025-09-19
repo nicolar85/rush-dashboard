@@ -152,6 +152,9 @@ try {
     exit;
 }
 
+// Ensure database schema matches the expectations of the API
+require_once __DIR__ . '/migrations/20240924_sync_schema.php';
+
 // ================================
 // UTILITY FUNCTIONS
 // ================================
