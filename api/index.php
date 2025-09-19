@@ -164,6 +164,30 @@ function respondWithSuccess($data = [], $message = null) {
     exit;
 }
 
+function enforceAdminAccess($pdo, $user, $action = 'ADMIN_ACTION_BLOCKED', $context = 'azione riservata') {
+    $role = $user['role'] ?? 'sconosciuto';
+
+    if ($role !== 'admin') {
+        $username = $user['username'] ?? 'sconosciuto';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+        logActivity(
+            $pdo,
+            $user['id'] ?? null,
+            $action,
+            sprintf(
+                'Tentativo non autorizzato di %s da %s (ruolo: %s, IP: %s)',
+                $context,
+                $username,
+                $role,
+                $ip
+            )
+        );
+
+        respondWithError(403, 'Accesso negato. Solo gli amministratori possono caricare o aggiornare file.');
+    }
+}
+
 // ================================
 // ROUTING
 // ================================
@@ -263,18 +287,7 @@ function handlePostRequests($pdo, $pathParts, $endpoint) {
             
         case 'upload':
             $user = requireAuth($pdo);
-            if ($user['role'] !== 'admin') {
-                logActivity(
-                    $pdo,
-                    $user['id'],
-                    'FILE_UPLOAD_BLOCKED',
-                    sprintf("Tentativo di upload da utente non autorizzato: %s (ruolo: %s)",
-                        $user['username'] ?? 'sconosciuto',
-                        $user['role'] ?? 'sconosciuto'
-                    )
-                );
-                respondWithError(403, 'Accesso negato. Solo gli amministratori possono caricare o aggiornare file.');
-            }
+            enforceAdminAccess($pdo, $user, 'FILE_UPLOAD_BLOCKED', 'caricamento/aggiornamento file');
             handleFileUpload($pdo, $user);
             break;
             
@@ -895,18 +908,7 @@ function getFileData($pdo, $user, $fileDate) {
 }
 
 function handleFileUpload($pdo, $user) {
-    if ($user['role'] !== 'admin') {
-        logActivity(
-            $pdo,
-            $user['id'] ?? null,
-            'FILE_UPLOAD_BLOCKED',
-            sprintf("Tentativo di accesso diretto a handleFileUpload da %s (ruolo: %s)",
-                $user['username'] ?? 'sconosciuto',
-                $user['role'] ?? 'sconosciuto'
-            )
-        );
-        respondWithError(403, 'Accesso negato. Solo gli amministratori possono caricare o aggiornare file.');
-    }
+    enforceAdminAccess($pdo, $user, 'FILE_UPLOAD_BLOCKED', 'upload file (invocazione diretta)');
 
     try {
         $input = json_decode(file_get_contents('php://input'), true);

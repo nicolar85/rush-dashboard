@@ -62,7 +62,7 @@ Eseguire i seguenti test dopo il deploy dell'API aggiornata:
 1. **Viewer**
    - Effettua il login con un account avente ruolo `viewer`.
    - Prova a caricare un file Excel dalla dashboard.
-   - Verifica che l'operazione venga bloccata con status HTTP `403`, che compaia il toast "⛔ Accesso negato..." e che l'evento venga registrato nei log attività del backend.
+   - Verifica che il server restituisca HTTP `403`, che compaia il toast "⛔ Accesso negato. Solo gli amministratori possono caricare o aggiornare file." e che nei log attività venga creato un evento `FILE_UPLOAD_BLOCKED` con i dettagli del tentativo.
 2. **Admin**
    - Effettua il login con un account `admin`.
    - Carica un nuovo file Excel e verifica che l'upload abbia successo (toast di conferma e file presente nella lista).
