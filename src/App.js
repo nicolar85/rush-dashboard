@@ -448,7 +448,11 @@ const FileUpload = ({ openDialog, currentUser }) => {
       }
 
     } catch (error) {
-      toast.error(`❌ Errore: ${error.message || 'Caricamento fallito'}`, { id: 'upload' });
+      if (error?.statusCode === 403) {
+        toast.error('⛔ Accesso negato: solo gli amministratori possono caricare o aggiornare file.', { id: 'upload', duration: 5000 });
+      } else {
+        toast.error(`❌ Errore: ${error.message || 'Caricamento fallito'}`, { id: 'upload' });
+      }
       console.error('Upload error:', error);
     } finally {
       setUploading(false);
