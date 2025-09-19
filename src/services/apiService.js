@@ -99,6 +99,8 @@ const logDebug = createLogger(console.log.bind(console));
 const logError = createLogger(console.error.bind(console));
 const logWarn = createLogger(console.warn.bind(console));
 
+const SESSION_STORAGE_KEY = 'rush-dashboard:api-session';
+
 class ApiError extends Error {
   constructor(message, statusCode, details = null) {
     super(message);
@@ -119,6 +121,8 @@ class ApiService {
     // 🐛 DEBUG: Mostra quale URL sta usando
     logDebug(`🔗 API URL configurata: ${this.baseURL}`);
     logDebug(`🌍 Environment: ${mode}`);
+
+    this.loadStoredSession();
   }
 
   /**
@@ -238,6 +242,16 @@ class ApiService {
     this.currentUser = null;
     this.expiresAt = null;
     this.sessionActive = false;
+
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+
+    try {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch (error) {
+      logWarn('Impossibile rimuovere la sessione dal localStorage:', error);
+    }
   }
 
   /**
@@ -245,6 +259,63 @@ class ApiService {
    */
   setToken(token) {
     this.token = token || null;
+
+    if (this.token) {
+      this.saveSessionToStorage();
+    }
+  }
+
+  saveSessionToStorage() {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+
+    try {
+      const sessionData = {
+        token: this.token,
+        currentUser: this.currentUser,
+        expiresAt: this.expiresAt,
+        sessionActive: this.sessionActive,
+      };
+
+      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+    } catch (error) {
+      logWarn('Impossibile salvare la sessione nel localStorage:', error);
+    }
+  }
+
+  loadStoredSession() {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+
+    try {
+      const storedData = window.localStorage.getItem(SESSION_STORAGE_KEY);
+
+      if (!storedData) {
+        return;
+      }
+
+      const sessionData = JSON.parse(storedData);
+
+      if (sessionData?.expiresAt && new Date(sessionData.expiresAt) <= new Date()) {
+        this.clearSession();
+        return;
+      }
+
+      this.token = sessionData?.token || null;
+      this.currentUser = sessionData?.currentUser || null;
+      this.expiresAt = sessionData?.expiresAt || null;
+      this.sessionActive = Boolean(sessionData?.sessionActive && sessionData?.token);
+    } catch (error) {
+      logWarn('Impossibile caricare la sessione dal localStorage:', error);
+
+      try {
+        window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch (removeError) {
+        logWarn('Impossibile ripulire la sessione corrotta dal localStorage:', removeError);
+      }
+    }
   }
 
   // ================================
@@ -271,6 +342,8 @@ class ApiService {
       this.currentUser = response.user || null;
       this.expiresAt = response.expires_at || null;
       this.sessionActive = true;
+
+      this.saveSessionToStorage();
 
       logDebug('✅ Login successful for:', response.user?.username || 'utente sconosciuto');
 
@@ -363,6 +436,8 @@ class ApiService {
       if (response.expires_at) {
         this.expiresAt = response.expires_at;
       }
+
+      this.saveSessionToStorage();
 
       return { success: true, user };
 
