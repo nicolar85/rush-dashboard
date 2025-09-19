@@ -54,3 +54,18 @@ npm test         # Avvia Jest tramite react-scripts per i test component/integra
 - **Errore durante `npm install`**: se l'ambiente è offline, utilizza i pacchetti già presenti nella cartella `node_modules` oppure aggiorna il registry aziendale.
 - **Variabile API non definita**: assicurati di impostare `VITE_API_BASE_URL`/`REACT_APP_API_BASE_URL` prima di avviare build o dev server.
 - **Linting**: il comando `npm run lint` usa la configurazione `react-app` di ESLint (già inclusa da CRA). Assicurati che l'IDE non sovrascriva la config.
+
+## 8. Test manuali per controllo upload
+
+Eseguire i seguenti test dopo il deploy dell'API aggiornata:
+
+1. **Viewer**
+   - Effettua il login con un account avente ruolo `viewer`.
+   - Prova a caricare un file Excel dalla dashboard.
+   - Verifica che l'operazione venga bloccata con status HTTP `403`, che compaia il toast "⛔ Accesso negato..." e che l'evento venga registrato nei log attività del backend.
+2. **Admin**
+   - Effettua il login con un account `admin`.
+   - Carica un nuovo file Excel e verifica che l'upload abbia successo (toast di conferma e file presente nella lista).
+   - Ripeti l'operazione con un file già presente per assicurarti che l'aggiornamento funzioni ancora correttamente.
+
+Questi scenari garantiscono che solo gli amministratori possano caricare o aggiornare file mentre gli altri ruoli vengono bloccati lato server.
