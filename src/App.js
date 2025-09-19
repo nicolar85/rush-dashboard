@@ -449,7 +449,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
 
     } catch (error) {
       if (error?.statusCode === 403) {
-        toast.error('⛔ Accesso negato: solo gli amministratori possono caricare o aggiornare file.', { id: 'upload', duration: 5000 });
+        toast.error('⛔ Accesso negato. Solo gli amministratori possono caricare o aggiornare file.', { id: 'upload', duration: 5000 });
       } else {
         toast.error(`❌ Errore: ${error.message || 'Caricamento fallito'}`, { id: 'upload' });
       }
