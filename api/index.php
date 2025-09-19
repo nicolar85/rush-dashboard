@@ -10,6 +10,28 @@ header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Access-Control-Max-Age: 86400');
 
+if (!function_exists('getallheaders')) {
+    /**
+     * Polyfill for getallheaders() when running under non-Apache SAPIs.
+     */
+    function getallheaders(): array
+    {
+        $headers = [];
+
+        foreach ($_SERVER as $name => $value) {
+            if (strpos($name, 'HTTP_') === 0) {
+                $headerName = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))));
+                $headers[$headerName] = $value;
+            } elseif (in_array($name, ['CONTENT_TYPE', 'CONTENT_LENGTH', 'CONTENT_MD5'], true)) {
+                $headerName = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', $name))));
+                $headers[$headerName] = $value;
+            }
+        }
+
+        return $headers;
+    }
+}
+
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
