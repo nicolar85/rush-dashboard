@@ -70,3 +70,9 @@ Eseguire i seguenti test dopo il deploy dell'API aggiornata:
    - Ripeti l'operazione con un file già presente per assicurarti che l'aggiornamento funzioni ancora correttamente.
 
 Questi scenari garantiscono che solo gli amministratori possano caricare o aggiornare file mentre gli altri ruoli vengono bloccati lato server.
+
+## 9. Sincronizzazione automatica dello schema API
+
+- L'endpoint di login PHP (`api/index.php`) esegue ora automaticamente il bootstrap di `api/migrations/20240924_sync_schema.php` prima di interagire con il database. Il bootstrap verifica che la tabella `user_sessions` e la colonna `users.is_active` siano presenti, creando automaticamente gli elementi mancanti.
+- In caso di problemi durante la sincronizzazione lo script interrompe la richiesta con HTTP `503` e messaggio "Eseguire migrazione schema", evitando che vengano eseguite query non sicure.
+- Se per esigenze operative la sincronizzazione automatica viene disabilitata, assicurati di eseguire manualmente la migrazione (`api/migrations/20240924_sync_schema.php` con una connessione PDO valida) prima di riattivare le nuove policy di sessione.

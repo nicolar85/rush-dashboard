@@ -37,7 +37,39 @@ $ensureColumn = function (PDO $pdo, callable $tableExists, string $table, string
     }
 };
 
+/**
+ * Ensure the required table exists, creating it if missing.
+ */
+$ensureTable = function (PDO $pdo, callable $tableExists, string $table, string $createSql): void {
+    if ($tableExists($pdo, $table)) {
+        return;
+    }
+
+    $pdo->exec($createSql);
+};
+
 try {
+    $ensureTable(
+        $pdo,
+        $tableExists,
+        'user_sessions',
+        <<<SQL
+        CREATE TABLE user_sessions (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            session_token VARCHAR(128) NOT NULL,
+            ip_address VARCHAR(45) NULL DEFAULT NULL,
+            user_agent VARCHAR(255) NULL DEFAULT NULL,
+            expires_at DATETIME NOT NULL,
+            last_activity DATETIME NULL DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY session_token (session_token),
+            KEY user_id (user_id),
+            CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        SQL
+    );
+
     $migrations = [
         'users' => [
             'role' => "role VARCHAR(50) NOT NULL DEFAULT 'user'",
@@ -85,4 +117,5 @@ try {
     }
 } catch (Throwable $e) {
     error_log('Schema sync failed: ' . $e->getMessage());
+    throw $e;
 }
