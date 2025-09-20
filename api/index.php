@@ -110,50 +110,86 @@ function requireEnv(string $key): string
     return $value;
 }
 
-$config = [
-    'host' => requireEnv('DB_HOST'),
-    'dbname' => requireEnv('DB_NAME'),
-    'username' => requireEnv('DB_USERNAME'),
-    'password' => requireEnv('DB_PASSWORD'),
-    'charset' => getenv('DB_CHARSET') ?: 'utf8mb4',
-    'collation' => getenv('DB_COLLATION') ?: null,
-];
+$driver = strtolower(getenv('DB_DRIVER') ?: 'mysql');
 
-$dsn = sprintf(
-    'mysql:host=%s;dbname=%s;charset=%s',
-    $config['host'],
-    $config['dbname'],
-    $config['charset']
-);
+if ($driver === 'sqlite' && !extension_loaded('pdo_sqlite')) {
+    $fallbackMessage = 'Estensione pdo_sqlite non disponibile. Verrà utilizzata la configurazione MySQL.';
+    error_log($fallbackMessage);
 
-$initCommand = $config['collation']
-    ? sprintf('SET NAMES %s COLLATE %s', $config['charset'], $config['collation'])
-    : sprintf('SET NAMES %s', $config['charset']);
+    if (getenv('DB_HOST') === false || getenv('DB_NAME') === false || getenv('DB_USERNAME') === false || getenv('DB_PASSWORD') === false) {
+        http_response_code(500);
+        echo json_encode([
+            'error' => 'Configurazione ambiente non valida',
+            'details' => 'Per utilizzare il fallback MySQL configura DB_HOST, DB_NAME, DB_USERNAME e DB_PASSWORD oppure abilita l\'estensione pdo_sqlite'
+        ]);
+        exit;
+    }
+
+    $driver = 'mysql';
+}
 
 // ================================
 // CONNESSIONE DATABASE
 // ================================
 try {
-    $pdo = new PDO(
-        $dsn,
-        $config['username'],
-        $config['password'],
-        [
+    if ($driver === 'sqlite') {
+        $sqlitePath = getenv('SQLITE_PATH') ?: __DIR__ . '/storage/database.sqlite';
+        $directory = dirname($sqlitePath);
+
+        if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
+            throw new RuntimeException('Impossibile creare la directory per il database SQLite: ' . $directory);
+        }
+
+        $dsn = 'sqlite:' . $sqlitePath;
+        $pdo = new PDO($dsn, null, null, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::MYSQL_ATTR_INIT_COMMAND => $initCommand
-        ]
-    );
-} catch(PDOException $e) {
+        ]);
+    } else {
+        $config = [
+            'host' => requireEnv('DB_HOST'),
+            'dbname' => requireEnv('DB_NAME'),
+            'username' => requireEnv('DB_USERNAME'),
+            'password' => requireEnv('DB_PASSWORD'),
+            'charset' => getenv('DB_CHARSET') ?: 'utf8mb4',
+            'collation' => getenv('DB_COLLATION') ?: null,
+        ];
+
+        $dsn = sprintf(
+            'mysql:host=%s;dbname=%s;charset=%s',
+            $config['host'],
+            $config['dbname'],
+            $config['charset']
+        );
+
+        $initCommand = $config['collation']
+            ? sprintf('SET NAMES %s COLLATE %s', $config['charset'], $config['collation'])
+            : sprintf('SET NAMES %s', $config['charset']);
+
+        $pdo = new PDO(
+            $dsn,
+            $config['username'],
+            $config['password'],
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::MYSQL_ATTR_INIT_COMMAND => $initCommand
+            ]
+        );
+    }
+} catch(Throwable $e) {
     error_log('Database connection failed: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Errore di connessione al database']);
     exit;
 }
 
-// Ensure database schema matches the expectations of the API
-require_once __DIR__ . '/migrations/20240924_sync_schema.php';
+// Ensure database schema matches the expectations of the API (solo MySQL)
+if ($driver === 'mysql') {
+    require_once __DIR__ . '/migrations/20240924_sync_schema.php';
+}
 
 // ================================
 // UTILITY FUNCTIONS

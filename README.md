@@ -38,6 +38,7 @@ npm test         # Avvia Jest tramite react-scripts per i test component/integra
 
 - Definisci `VITE_API_BASE_URL` oppure il legacy `REACT_APP_API_BASE_URL` in un file `.env` per cambiare l'endpoint backend.
 - Il codice usa un resolver che controlla `import.meta.env` e, in fallback, `process.env`, così da funzionare sia con la nuova build Webpack sia con eventuali ambienti che usano ancora CRA.
+- Il backend PHP supporta un fallback SQLite impostando `DB_DRIVER=sqlite`, ma richiede che l'estensione `pdo_sqlite` sia disponibile. Se l'estensione manca, l'API tenta automaticamente di utilizzare la configurazione MySQL (`DB_HOST`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`).
 
 ## 5. Asset e routing
 
