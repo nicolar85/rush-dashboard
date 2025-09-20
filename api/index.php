@@ -16,11 +16,24 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
-$host = getenv('DB_HOST') ?: 'localhost';
-$database = getenv('DB_NAME') ?: 'rush_dashboard';
-$username = getenv('DB_USERNAME') ?: 'root';
-$password = getenv('DB_PASSWORD') ?: '';
-$charset = getenv('DB_CHARSET') ?: 'utf8mb4';
+loadEnvFile(dirname(__DIR__) . '/.env');
+
+try {
+    $env = requireEnv(['DB_HOST', 'DB_NAME', 'DB_USERNAME', 'DB_PASSWORD', 'DB_CHARSET']);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Configurazione ambiente non valida',
+        'details' => $e->getMessage(),
+    ]);
+    exit;
+}
+
+$host = $env['DB_HOST'];
+$database = $env['DB_NAME'];
+$username = $env['DB_USERNAME'];
+$password = $env['DB_PASSWORD'];
+$charset = $env['DB_CHARSET'];
 
 try {
     $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', $host, $database, $charset);
@@ -173,4 +186,68 @@ function handleProfile(PDO $pdo): void
     }
 
     echo json_encode(['success' => true, 'user' => $user]);
+}
+
+function loadEnvFile(string $path): void
+{
+    if (!is_readable($path)) {
+        return;
+    }
+
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+
+        if ($line === '' || strpos($line, '#') === 0) {
+            continue;
+        }
+
+        if (stripos($line, 'export ') === 0) {
+            $line = trim(substr($line, 7));
+        }
+
+        if (strpos($line, '=') === false) {
+            continue;
+        }
+
+        [$name, $value] = explode('=', $line, 2);
+
+        $name = trim($name);
+        $value = trim($value);
+
+        if ($value !== '') {
+            $firstChar = $value[0];
+            $lastChar = substr($value, -1);
+
+            if (in_array(ord($firstChar), [34, 39], true) && $lastChar === $firstChar) {
+                $value = substr($value, 1, -1);
+            }
+        }
+
+        if (getenv($name) !== false) {
+            continue;
+        }
+
+        putenv($name . '=' . $value);
+        $_ENV[$name] = $value;
+        $_SERVER[$name] = $value;
+    }
+}
+
+function requireEnv(array $keys): array
+{
+    $values = [];
+
+    foreach ($keys as $key) {
+        $value = getenv($key);
+
+        if ($value === false || $value === '') {
+            throw new RuntimeException(sprintf('Missing required environment variable: %s', $key));
+        }
+
+        $values[$key] = $value;
+    }
+
+    return $values;
 }
