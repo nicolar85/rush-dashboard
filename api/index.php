@@ -51,6 +51,17 @@ try {
     exit;
 }
 
+try {
+    require_once __DIR__ . '/migrations/20240924_sync_schema.php';
+} catch (Throwable $e) {
+    http_response_code(503);
+    echo json_encode([
+        'error' => 'Eseguire migrazione schema',
+        'details' => $e->getMessage(),
+    ]);
+    exit;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $path = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '', '/');
 $segments = $path ? explode('/', $path) : [];
