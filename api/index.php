@@ -392,6 +392,173 @@ function handleFileData(PDO $pdo): void
 
 function handleFileUpload(PDO $pdo): void
 {
-    echo json_encode(['success' => true, 'message' => 'Upload endpoint attivo']);
+    $token = getAuthorizationToken();
+
+    if (!$token) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Token di autenticazione mancante']);
+        return;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT u.id, u.role FROM users u JOIN user_sessions s ON u.id = s.user_id WHERE s.session_token = ? AND s.expires_at > NOW()'
+    );
+    $stmt->execute([$token]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Token non valido o sessione scaduta']);
+        return;
+    }
+
+    if (($user['role'] ?? '') !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Permessi insufficienti per caricare file']);
+        return;
+    }
+
+    $input = getJsonInput();
+    $fileData = $input['fileData'] ?? null;
+
+    if (!is_array($fileData)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Payload fileData mancante o non valido']);
+        return;
+    }
+
+    $fileName = trim((string)($fileData['name'] ?? ''));
+    $fileDate = trim((string)($fileData['date'] ?? ''));
+    $displayDate = isset($fileData['displayDate']) ? trim((string)$fileData['displayDate']) : null;
+    $displayDate = $displayDate === '' ? null : $displayDate;
+
+    $fileSize = $fileData['size'] ?? null;
+    if ($fileSize === '' || $fileSize === null) {
+        $fileSize = null;
+    } else {
+        $fileSize = (int)$fileSize;
+    }
+    $rawData = $fileData['data'] ?? null;
+
+    if ($fileName === '' || $fileDate === '' || !is_array($rawData)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Nome file, data e dati elaborati sono obbligatori']);
+        return;
+    }
+
+    $agentsData = is_array($rawData['agents'] ?? null) ? $rawData['agents'] : [];
+    $smRanking = is_array($rawData['smRanking'] ?? null) ? $rawData['smRanking'] : [];
+    $rawMetadata = is_array($rawData['metadata'] ?? null) ? $rawData['metadata'] : [];
+    $fileMetadata = is_array($fileData['metadata'] ?? null) ? $fileData['metadata'] : [];
+
+    $mergedMetadata = array_merge($rawMetadata, $fileMetadata);
+
+    $totalAgents = (int)($mergedMetadata['totalAgents'] ?? 0);
+    $totalSMs = (int)($mergedMetadata['totalSMs'] ?? 0);
+    $totalRevenue = (float)($mergedMetadata['totalRevenue'] ?? 0);
+    $totalRush = (float)($mergedMetadata['totalRush'] ?? ($mergedMetadata['totalInflow'] ?? 0));
+    $totalInflow = (float)($mergedMetadata['totalInflow'] ?? $totalRush);
+    $totalNewClients = (int)($mergedMetadata['totalNewClients'] ?? 0);
+    $totalFastweb = (int)($mergedMetadata['totalFastweb'] ?? 0);
+
+    $totalsMetadata = [
+        'totalAgents' => $totalAgents,
+        'totalSMs' => $totalSMs,
+        'totalRevenue' => $totalRevenue,
+        'totalRush' => $totalRush,
+        'totalInflow' => $totalInflow,
+        'totalNewClients' => $totalNewClients,
+        'totalFastweb' => $totalFastweb,
+    ];
+
+    $metadata = array_merge($mergedMetadata, $totalsMetadata);
+
+    $rawData['metadata'] = $metadata;
+
+    $agentsJson = json_encode($agentsData, JSON_UNESCAPED_UNICODE);
+    $smRankingJson = json_encode($smRanking, JSON_UNESCAPED_UNICODE);
+    $metadataJson = json_encode($metadata, JSON_UNESCAPED_UNICODE);
+    $fileDataJson = json_encode($rawData, JSON_UNESCAPED_UNICODE);
+
+    foreach ([
+        'agents_data' => $agentsJson,
+        'sm_ranking' => $smRankingJson,
+        'metadata' => $metadataJson,
+        'file_data' => $fileDataJson,
+    ] as $key => $encoded) {
+        if ($encoded === false) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => "Impossibile serializzare {$key}"]);
+            return;
+        }
+    }
+
+    $pdo->beginTransaction();
+
+    try {
+        $lookup = $pdo->prepare('SELECT id FROM uploaded_files WHERE file_date = ? LIMIT 1');
+        $lookup->execute([$fileDate]);
+        $existingId = $lookup->fetchColumn();
+
+        if ($existingId) {
+            $stmt = $pdo->prepare(
+                'UPDATE uploaded_files SET file_name = ?, display_date = ?, file_size = ?, upload_date = NOW(), uploaded_by = ?, agents_data = ?, sm_ranking = ?, metadata = ?, file_data = ?, total_agents = ?, total_sms = ?, total_revenue = ?, total_inflow = ?, total_new_clients = ?, total_fastweb = ?, total_rush = ? WHERE id = ?'
+            );
+
+            $stmt->execute([
+                $fileName,
+                $displayDate,
+                $fileSize,
+                $user['id'],
+                $agentsJson,
+                $smRankingJson,
+                $metadataJson,
+                $fileDataJson,
+                $totalAgents,
+                $totalSMs,
+                number_format($totalRevenue, 2, '.', ''),
+                number_format($totalInflow, 2, '.', ''),
+                $totalNewClients,
+                $totalFastweb,
+                number_format($totalRush, 2, '.', ''),
+                $existingId,
+            ]);
+
+            $action = 'updated';
+        } else {
+            $stmt = $pdo->prepare(
+                'INSERT INTO uploaded_files (file_date, file_name, display_date, file_size, upload_date, uploaded_by, agents_data, sm_ranking, metadata, file_data, total_agents, total_sms, total_revenue, total_inflow, total_new_clients, total_fastweb, total_rush) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+
+            $stmt->execute([
+                $fileDate,
+                $fileName,
+                $displayDate,
+                $fileSize,
+                $user['id'],
+                $agentsJson,
+                $smRankingJson,
+                $metadataJson,
+                $fileDataJson,
+                $totalAgents,
+                $totalSMs,
+                number_format($totalRevenue, 2, '.', ''),
+                number_format($totalInflow, 2, '.', ''),
+                $totalNewClients,
+                $totalFastweb,
+                number_format($totalRush, 2, '.', ''),
+            ]);
+
+            $action = 'created';
+        }
+
+        $pdo->commit();
+
+        echo json_encode(['success' => true, 'action' => $action]);
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Salvataggio file non riuscito', 'details' => $e->getMessage()]);
+    }
 }
 ?>

@@ -539,13 +539,23 @@ class ApiService {
     try {
       logDebug('💾 Saving file:', fileData.name, fileData.date);
       
-      const response = await this.makeRequest('upload', {
+      const response = await this.makeRequest('uploads', {
         method: 'POST',
         body: JSON.stringify({ fileData }),
       });
-      
-      logDebug('✅ File saved successfully:', response);
-      return response;
+
+      const success = response?.success === true;
+      const action = response?.action ?? (success ? 'created' : undefined);
+
+      if (!success) {
+        const errorMessage = response?.error || 'Impossibile salvare il file';
+        throw new ApiError(errorMessage, response?.statusCode ?? 500, response);
+      }
+
+      const result = { success, action };
+
+      logDebug('✅ File saved successfully:', result);
+      return result;
     } catch (error) {
       logError('❌ Error saving file:', error);
       throw error;
