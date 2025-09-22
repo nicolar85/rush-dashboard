@@ -186,7 +186,7 @@ function normalizeUploadedFile(array $file): array
         'total_agents' => ['totalAgents', 'int'],
         'total_sms' => ['totalSMs', 'int'],
         'total_revenue' => ['totalRevenue', 'float'],
-        'total_inflow' => ['totalInflow', 'float'],
+        'total_inflow' => ['totalRush', 'float'],
         'total_new_clients' => ['totalNewClients', 'int'],
         'total_fastweb' => ['totalFastweb', 'int'],
         'total_rush' => ['totalRush', 'float'],
@@ -215,6 +215,20 @@ function normalizeUploadedFile(array $file): array
         is_array($metadataFromColumn) ? $metadataFromColumn : [],
         $totalsForClient
     );
+
+    if (!array_key_exists('totalRush', $metadata)) {
+        if (array_key_exists('total_inflow', $file) && $file['total_inflow'] !== null && $file['total_inflow'] !== '') {
+            $metadata['totalRush'] = (float) $file['total_inflow'];
+        } elseif (isset($metadataFromColumn['totalRush'])) {
+            $metadata['totalRush'] = (float) $metadataFromColumn['totalRush'];
+        } else {
+            $metadata['totalRush'] = 0.0;
+        }
+    }
+
+    if (!array_key_exists('totalInflow', $metadata) && isset($metadata['totalRush'])) {
+        $metadata['totalInflow'] = $metadata['totalRush'];
+    }
 
     if (is_array($fileData)) {
         $fileDataMetadata = isset($fileData['metadata']) && is_array($fileData['metadata'])
