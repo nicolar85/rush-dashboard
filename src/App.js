@@ -70,27 +70,25 @@ const DataProvider = ({ children, isAuthenticated }) => {
       console.log(`📁 ${files.length} file trovati nel database`);
       
       // Converte i dati dal formato database al formato app
-      const processedFiles = await Promise.all(files.map(async (file) => {
+      const processedFiles = files.map((file) => {
         try {
-          // Prova a caricare dati completi del file se necessario per la dashboard
-          let fileData = null;
-          
-          // Controlla se i dati sono già nel file dalla query principale
-          if (file.file_data) {
-            if (typeof file.file_data === 'string') {
-              fileData = JSON.parse(file.file_data);
-            } else {
-              fileData = file.file_data;
-            }
-          } else {
-            // Fallback: prova a caricare i dati separatamente
-            try {
-              fileData = await apiService.getFileData(file.file_date);
-            } catch (error) {
-              console.warn(`Impossibile caricare dati dettagliati per ${file.file_date}`);
-            }
+          const fileData = file.file_data ?? null;
+
+          if (!fileData) {
+            console.warn(`Dati completi mancanti per ${file.file_date}`);
           }
-          
+
+          const metadataSource = fileData?.metadata ?? file.metadata ?? {};
+          const normalizedMetadata = {
+            ...metadataSource,
+            totalAgents: metadataSource.totalAgents ?? 0,
+            totalSMs: metadataSource.totalSMs ?? 0,
+            totalRevenue: metadataSource.totalRevenue ?? 0,
+            totalRush: metadataSource.totalRush ?? 0,
+            totalNewClients: metadataSource.totalNewClients ?? 0,
+            totalFastweb: metadataSource.totalFastweb ?? 0
+          };
+
           return {
             id: file.id,
             name: file.file_name,
@@ -99,22 +97,7 @@ const DataProvider = ({ children, isAuthenticated }) => {
             uploadDate: file.upload_date,
             size: file.file_size,
             data: fileData,
-            metadata: fileData ? {
-              totalAgents: fileData.metadata?.totalAgents || 0,
-              totalSMs: fileData.metadata?.totalSMs || 0,
-              totalRevenue: fileData.metadata?.totalRevenue || 0,
-              totalRush: fileData.metadata?.totalRush || 0,
-              totalNewClients: fileData.metadata?.totalNewClients || 0,
-              totalFastweb: fileData.metadata?.totalFastweb || 0
-            } : {
-              // Fallback dai dati di base del file
-              totalAgents: file.total_agents || 0,
-              totalSMs: file.total_sms || 0,
-              totalRevenue: file.total_revenue || 0,
-              totalRush: file.total_rush || 0,
-              totalNewClients: file.total_new_clients || 0,
-              totalFastweb: file.total_fastweb || 0
-            }
+            metadata: normalizedMetadata
           };
         } catch (error) {
           console.warn(`Errore processamento file ${file.file_date}:`, error);
@@ -136,7 +119,7 @@ const DataProvider = ({ children, isAuthenticated }) => {
             }
           };
         }
-      }));
+      });
       
       // 🔧 FIX: Ordina i file per data nel nome, non per data upload
       const sortedFiles = sortFilesByDate(processedFiles);
