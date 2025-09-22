@@ -146,6 +146,103 @@ function getJsonInput(): array
     return is_array($input) ? $input : [];
 }
 
+function decodeJsonColumn($value, $default = null)
+{
+    if (is_array($value)) {
+        return $value;
+    }
+
+    if (is_object($value)) {
+        return json_decode(json_encode($value), true);
+    }
+
+    if (is_string($value)) {
+        $value = trim($value);
+        if ($value === '') {
+            return $default;
+        }
+
+        $decoded = json_decode($value, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            return is_array($decoded) ? $decoded : $default;
+        }
+    }
+
+    if ($value === null || $value === '') {
+        return $default;
+    }
+
+    return $default;
+}
+
+function normalizeUploadedFile(array $file): array
+{
+    $agentsData = decodeJsonColumn($file['agents_data'] ?? null, []);
+    $smRanking = decodeJsonColumn($file['sm_ranking'] ?? null, []);
+    $metadataFromColumn = decodeJsonColumn($file['metadata'] ?? null, []);
+    $fileData = decodeJsonColumn($file['file_data'] ?? null, null);
+
+    $numericMap = [
+        'total_agents' => ['totalAgents', 'int'],
+        'total_sms' => ['totalSMs', 'int'],
+        'total_revenue' => ['totalRevenue', 'float'],
+        'total_inflow' => ['totalInflow', 'float'],
+        'total_new_clients' => ['totalNewClients', 'int'],
+        'total_fastweb' => ['totalFastweb', 'int'],
+        'total_rush' => ['totalRush', 'float'],
+    ];
+
+    $totalsForClient = [];
+
+    foreach ($numericMap as $column => [$clientKey, $type]) {
+        if (!array_key_exists($column, $file)) {
+            continue;
+        }
+
+        $value = $file[$column];
+        if ($value === null || $value === '') {
+            continue;
+        }
+
+        if ($type === 'int') {
+            $totalsForClient[$clientKey] = (int) $value;
+        } else {
+            $totalsForClient[$clientKey] = (float) $value;
+        }
+    }
+
+    $metadata = array_merge(
+        is_array($metadataFromColumn) ? $metadataFromColumn : [],
+        $totalsForClient
+    );
+
+    if (is_array($fileData)) {
+        $fileDataMetadata = isset($fileData['metadata']) && is_array($fileData['metadata'])
+            ? $fileData['metadata']
+            : [];
+        $fileData['metadata'] = array_merge($fileDataMetadata, $metadata);
+    } else {
+        $fileData = [
+            'metadata' => $metadata,
+        ];
+    }
+
+    if (!isset($fileData['agents']) && !empty($agentsData)) {
+        $fileData['agents'] = $agentsData;
+    }
+
+    if (!isset($fileData['smRanking']) && !empty($smRanking)) {
+        $fileData['smRanking'] = $smRanking;
+    }
+
+    $file['agents_data'] = $agentsData;
+    $file['sm_ranking'] = $smRanking;
+    $file['metadata'] = $metadata;
+    $file['file_data'] = $fileData;
+
+    return $file;
+}
+
 // === HANDLERS ===
 
 function handleLogin(PDO $pdo): void
@@ -232,9 +329,11 @@ function handleUploads(PDO $pdo): void
     $stmt->execute();
     $files = $stmt->fetchAll();
 
+    $normalizedFiles = array_map('normalizeUploadedFile', $files);
+
     echo json_encode([
         'success' => true,
-        'files' => $files
+        'files' => $normalizedFiles
     ]);
 }
 
@@ -272,7 +371,9 @@ function handleFileData(PDO $pdo): void
         return;
     }
 
-    echo json_encode(['success' => true, 'data' => $file]);
+    $normalized = normalizeUploadedFile($file);
+
+    echo json_encode($normalized);
 }
 
 function handleFileUpload(PDO $pdo): void
