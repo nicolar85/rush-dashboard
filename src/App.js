@@ -48,67 +48,79 @@ const DataProvider = ({ children, isAuthenticated }) => {
   const [globalLoading, setGlobalLoading] = useState(false);
 
   // 🔧 FUNZIONE DI CARICAMENTO GLOBALE - Condivisa tra tutti i componenti
-  const loadFiles = useCallback(async () => {
-    if (!isAuthenticated) return; // Non caricare se non autenticato
+  // 🔧 PATCH PER App.js - Sostituire la funzione loadFiles esistente
+
+const loadFiles = useCallback(async () => {
+  if (!isAuthenticated) return; // Non caricare se non autenticato
+  
+  try {
+    setGlobalLoading(true);
+    console.log('🔄 Caricamento globale dati dal database...');
     
-    try {
-      setGlobalLoading(true);
-      console.log('🔄 Caricamento globale dati dal database...');
-      
-      const files = await apiService.loadFiles();
-      
-      if (!files || !Array.isArray(files) || files.length === 0) {
-        console.log('📁 Nessun file trovato nel database');
-        setData(prevData => ({
-          ...prevData,
-          uploadedFiles: [],
-          processedData: {}
-        }));
-        return;
-      }
+    const files = await apiService.loadFiles();
+    
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      console.log('📁 Nessun file trovato nel database');
+      setData(prevData => ({
+        ...prevData,
+        uploadedFiles: [],
+        processedData: {}
+      }));
+      return;
+    }
 
-      console.log(`📁 ${files.length} file trovati nel database`);
-      
-      // Converte i dati dal formato database al formato app
-      const processedFiles = files.map((file) => {
-        try {
-          const fileData = file.file_data ?? null;
+    console.log(`📁 ${files.length} file trovati nel database`);
+    
+    // Converte i dati dal formato database al formato app
+    const processedFiles = files.map((file) => {
+      try {
+        // ✅ FIX: Usa agents_data invece di file_data
+        let fileData = null;
+        
+        // Prima prova con file_data (nuovo formato)
+        if (file.file_data && file.file_data !== 'null') {
+          fileData = typeof file.file_data === 'string' 
+            ? JSON.parse(file.file_data) 
+            : file.file_data;
+        }
+        // Se non disponibile, ricostruisci dai campi separati (formato legacy)
+        else if (file.agents_data && file.agents_data !== 'null') {
+          const agents = typeof file.agents_data === 'string' 
+            ? JSON.parse(file.agents_data) 
+            : file.agents_data;
+          
+          const smRanking = file.sm_ranking && file.sm_ranking !== 'null'
+            ? (typeof file.sm_ranking === 'string' ? JSON.parse(file.sm_ranking) : file.sm_ranking)
+            : [];
+          
+          const existingMetadata = file.metadata && file.metadata !== 'null'
+            ? (typeof file.metadata === 'string' ? JSON.parse(file.metadata) : file.metadata)
+            : {};
 
-          if (!fileData) {
-            console.warn(`Dati completi mancanti per ${file.file_date}`);
-          }
-
-          const metadataSource = fileData?.metadata ?? file.metadata ?? {};
-          const normalizedMetadata = {
-            ...metadataSource,
-            totalAgents: metadataSource.totalAgents ?? 0,
-            totalSMs: metadataSource.totalSMs ?? 0,
-            totalRevenue: metadataSource.totalRevenue ?? 0,
-            totalRush: metadataSource.totalRush ?? 0,
-            totalNewClients: metadataSource.totalNewClients ?? 0,
-            totalFastweb: metadataSource.totalFastweb ?? 0
+          // Ricostruisci file_data dal formato legacy
+          fileData = {
+            agents: agents,
+            smRanking: smRanking,
+            metadata: {
+              ...existingMetadata,
+              totalAgents: file.total_agents || agents.length || 0,
+              totalSMs: file.total_sms || 0,
+              totalRevenue: parseFloat(file.total_revenue || 0),
+              totalRush: parseFloat(file.total_inflow || file.total_rush || 0),
+              totalNewClients: file.total_new_clients || 0,
+              totalFastweb: file.total_fastweb || 0,
+            }
           };
+          
+          console.log(`🔨 Ricostruito file_data per ${file.file_date} da campi legacy`);
+        }
 
-          return {
-            id: file.id,
-            name: file.file_name,
-            date: file.file_date,
-            displayDate: file.display_date,
-            uploadDate: file.upload_date,
-            size: file.file_size,
-            data: fileData,
-            metadata: normalizedMetadata
-          };
-        } catch (error) {
-          console.warn(`Errore processamento file ${file.file_date}:`, error);
-          return {
-            id: file.id,
-            name: file.file_name,
-            date: file.file_date,
-            displayDate: file.display_date,
-            uploadDate: file.upload_date,
-            size: file.file_size,
-            data: null,
+        // Se ancora non abbiamo dati, usa valori di fallback
+        if (!fileData) {
+          console.warn(`⚠️ Dati non disponibili per ${file.file_date} - uso fallback`);
+          fileData = {
+            agents: [],
+            smRanking: [],
             metadata: {
               totalAgents: 0,
               totalSMs: 0,
@@ -119,52 +131,99 @@ const DataProvider = ({ children, isAuthenticated }) => {
             }
           };
         }
-      });
-      
-      // 🔧 FIX: Ordina i file per data nel nome, non per data upload
-      const sortedFiles = sortFilesByDate(processedFiles);
-      
-      // Crea il processedData per compatibilità con componenti esistenti
-      const processedData = {};
-      sortedFiles.forEach(file => {
-        if (file.data) {
-          processedData[file.date] = file.data;
-        }
-      });
-      
-      // 🔧 FIX: Seleziona automaticamente il file più recente se non c'è selezione
-      const newSelectedFileDate = selectedFileDate && sortedFiles.find(f => f.date === selectedFileDate) 
-        ? selectedFileDate 
-        : (sortedFiles.length > 0 ? sortedFiles[0].date : null);
-      
-      setData(prevData => ({
-        ...prevData,
-        uploadedFiles: sortedFiles,
-        processedData: processedData
-      }));
-      
-      setSelectedFileDate(newSelectedFileDate);
-      
-      console.log(`✅ ${sortedFiles.length} file caricati con successo globalmente`);
-      
-      if (sortedFiles.length > 0 && newSelectedFileDate) {
-        console.log(`📋 File selezionato: ${sortedFiles.find(f => f.date === newSelectedFileDate)?.displayDate || 'N/A'}`);
+
+        const metadataSource = fileData?.metadata ?? {};
+        const normalizedMetadata = {
+          ...metadataSource,
+          totalAgents: metadataSource.totalAgents ?? 0,
+          totalSMs: metadataSource.totalSMs ?? 0,
+          totalRevenue: metadataSource.totalRevenue ?? 0,
+          totalRush: metadataSource.totalRush ?? 0,
+          totalNewClients: metadataSource.totalNewClients ?? 0,
+          totalFastweb: metadataSource.totalFastweb ?? 0
+        };
+
+        return {
+          id: file.id,
+          name: file.file_name,
+          date: file.file_date,
+          displayDate: file.display_date,
+          uploadDate: file.upload_date,
+          size: file.file_size,
+          data: fileData, // ✅ Ora fileData è sempre popolato
+          metadata: normalizedMetadata
+        };
+      } catch (error) {
+        console.warn(`❌ Errore processamento file ${file.file_date}:`, error);
+        return {
+          id: file.id,
+          name: file.file_name,
+          date: file.file_date,
+          displayDate: file.display_date,
+          uploadDate: file.upload_date,
+          size: file.file_size,
+          data: {
+            agents: [],
+            smRanking: [],
+            metadata: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 }
+          },
+          metadata: {
+            totalAgents: 0,
+            totalSMs: 0,
+            totalRevenue: 0,
+            totalRush: 0,
+            totalNewClients: 0,
+            totalFastweb: 0
+          }
+        };
       }
-      
-    } catch (error) {
-      console.error('Errore nel caricamento globale dei file:', error);
-      toast.error('Errore nel caricamento dei dati dal database');
-      
-      // Reset in caso di errore
-      setData(prevData => ({
-        ...prevData,
-        uploadedFiles: [],
-        processedData: {}
-      }));
-    } finally {
-      setGlobalLoading(false);
-    } 
-  }, [isAuthenticated, selectedFileDate]);
+    });
+    
+    // Ordina i file per data
+    const sortedFiles = sortFilesByDate(processedFiles);
+    
+    // Crea il processedData per compatibilità
+    const processedData = {};
+    sortedFiles.forEach(file => {
+      if (file.data) {
+        processedData[file.date] = file.data;
+      }
+    });
+    
+    // Seleziona automaticamente il file più recente se non c'è selezione
+    const newSelectedFileDate = selectedFileDate && sortedFiles.find(f => f.date === selectedFileDate) 
+      ? selectedFileDate 
+      : (sortedFiles.length > 0 ? sortedFiles[0].date : null);
+    
+    setData(prevData => ({
+      ...prevData,
+      uploadedFiles: sortedFiles,
+      processedData: processedData
+    }));
+    
+    setSelectedFileDate(newSelectedFileDate);
+    
+    console.log(`✅ ${sortedFiles.length} file caricati con successo globalmente`);
+    console.log(`📊 File con dati: ${Object.keys(processedData).length}`);
+    
+    if (sortedFiles.length > 0 && newSelectedFileDate) {
+      console.log(`📋 File selezionato: ${sortedFiles.find(f => f.date === newSelectedFileDate)?.displayDate || 'N/A'}`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Errore nel caricamento globale dei file:', error);
+    toast.error('Errore nel caricamento dei dati dal database');
+    
+    // Reset in caso di errore
+    setData(prevData => ({
+      ...prevData,
+      uploadedFiles: [],
+      processedData: {}
+    }));
+  } finally {
+    setGlobalLoading(false);
+  } 
+}, [isAuthenticated, selectedFileDate]);
 
   // 🚀 CARICAMENTO AUTOMATICO ALL'AUTENTICAZIONE
   useEffect(() => {
