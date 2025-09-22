@@ -769,7 +769,7 @@ function App() {
             console.log('✅ Connessione API verificata');
           } catch (error) {
             console.warn('⚠️ Problema connessione API:', error);
-            toast.warning('Connessione al server instabile');
+            toast.error('Connessione al server instabile');
           }
         } else {
           setCurrentUser(null);
