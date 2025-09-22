@@ -212,8 +212,8 @@ function normalizeUploadedFile(array $file): array
     }
 
     $metadata = array_merge(
-        is_array($metadataFromColumn) ? $metadataFromColumn : [],
-        $totalsForClient
+        $totalsForClient,
+        is_array($metadataFromColumn) ? $metadataFromColumn : []
     );
 
     if (!array_key_exists('totalRush', $metadata)) {
