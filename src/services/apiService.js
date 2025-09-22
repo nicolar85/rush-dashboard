@@ -539,11 +539,11 @@ class ApiService {
     try {
       logDebug('💾 Saving file:', fileData.name, fileData.date);
       
-      const response = await this.makeRequest('upload', {
+      const response = await this.makeRequest('uploads', {
         method: 'POST',
         body: JSON.stringify({ fileData }),
       });
-      
+
       logDebug('✅ File saved successfully:', response);
       return response;
     } catch (error) {
