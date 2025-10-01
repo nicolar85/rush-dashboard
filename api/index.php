@@ -93,6 +93,23 @@ try {
                 handleFileData($pdo);
             }
             break;
+        
+        case 'users':
+            if ($method === 'GET') {
+                handleGetUsers($pdo);
+            } elseif ($method === 'POST') {
+                handleCreateUser($pdo);
+            } elseif ($method === 'PUT' && !empty($segments[1])) {
+                $userId = $segments[1];
+                if (!empty($segments[2]) && $segments[2] === 'role') {
+                    handleUpdateUserRole($pdo, $userId);
+                } elseif (!empty($segments[2]) && $segments[2] === 'password') {
+                    handleAdminUpdatePassword($pdo, $userId);
+                }
+            } elseif ($method === 'DELETE' && !empty($segments[1])) {
+                handleDeleteUser($pdo, $segments[1]);
+            }
+            break;
             
         default:
             http_response_code(404);
@@ -560,5 +577,186 @@ function handleFileUpload(PDO $pdo): void
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Salvataggio file non riuscito', 'details' => $e->getMessage()]);
     }
+}
+
+function requireAdminAuth(PDO $pdo): array
+{
+    $token = getAuthorizationToken();
+    
+    if (!$token) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Token di autenticazione mancante']);
+        exit;
+    }
+    
+    $stmt = $pdo->prepare(
+        'SELECT u.id, u.username, u.role, u.is_active 
+         FROM users u 
+         JOIN user_sessions s ON u.id = s.user_id 
+         WHERE s.session_token = ? AND s.expires_at > NOW()'
+    );
+    $stmt->execute([$token]);
+    $user = $stmt->fetch();
+    
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Token non valido o sessione scaduta']);
+        exit;
+    }
+    
+    if ($user['role'] !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Accesso negato. Solo gli amministratori possono gestire gli utenti.']);
+        exit;
+    }
+    
+    return $user;
+}
+
+function handleGetUsers(PDO $pdo): void
+{
+    requireAdminAuth($pdo);
+    
+    $stmt = $pdo->query(
+        'SELECT id, username, role, is_active, created_at 
+         FROM users 
+         ORDER BY username ASC'
+    );
+    $users = $stmt->fetchAll();
+    
+    echo json_encode(['users' => $users]);
+}
+
+function handleCreateUser(PDO $pdo): void
+{
+    requireAdminAuth($pdo);
+    
+    $input = getJsonInput();
+    $username = trim($input['username'] ?? '');
+    $password = trim($input['password'] ?? '');
+    $role = trim($input['role'] ?? 'viewer');
+    
+    if ($username === '' || $password === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Username e password sono obbligatori']);
+        return;
+    }
+    
+    if (!in_array($role, ['admin', 'viewer'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Ruolo non valido']);
+        return;
+    }
+    
+    // Verifica se username esiste già
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE username = ?');
+    $stmt->execute([$username]);
+    if ($stmt->fetch()) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'error' => 'Username già esistente']);
+        return;
+    }
+    
+    $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+    
+    $stmt = $pdo->prepare(
+        'INSERT INTO users (username, password, role, is_active, created_at) 
+         VALUES (?, ?, ?, 1, NOW())'
+    );
+    $stmt->execute([$username, $passwordHash, $role]);
+    
+    $userId = $pdo->lastInsertId();
+    
+    echo json_encode([
+        'success' => true,
+        'user' => [
+            'id' => $userId,
+            'username' => $username,
+            'role' => $role,
+            'is_active' => 1
+        ]
+    ]);
+}
+
+function handleUpdateUserRole(PDO $pdo, $userId): void
+{
+    requireAdminAuth($pdo);
+    
+    $input = getJsonInput();
+    $role = trim($input['role'] ?? '');
+    
+    if (!in_array($role, ['admin', 'viewer'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Ruolo non valido']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE id = ?');
+    $stmt->execute([$userId]);
+    if (!$stmt->fetch()) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Utente non trovato']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare('UPDATE users SET role = ? WHERE id = ?');
+    $stmt->execute([$role, $userId]);
+    
+    echo json_encode(['success' => true, 'message' => 'Ruolo aggiornato con successo']);
+}
+
+function handleAdminUpdatePassword(PDO $pdo, $userId): void
+{
+    requireAdminAuth($pdo);
+    
+    $input = getJsonInput();
+    $newPassword = trim($input['new_password'] ?? '');
+    
+    if ($newPassword === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'La nuova password è obbligatoria']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE id = ?');
+    $stmt->execute([$userId]);
+    if (!$stmt->fetch()) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Utente non trovato']);
+        return;
+    }
+    
+    $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+    
+    $stmt = $pdo->prepare('UPDATE users SET password = ? WHERE id = ?');
+    $stmt->execute([$passwordHash, $userId]);
+    
+    echo json_encode(['success' => true, 'message' => 'Password aggiornata con successo']);
+}
+
+function handleDeleteUser(PDO $pdo, $userId): void
+{
+    requireAdminAuth($pdo);
+    
+    // Verifica che l'utente esista
+    $stmt = $pdo->prepare('SELECT id, username FROM users WHERE id = ?');
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+    
+    if (!$user) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Utente non trovato']);
+        return;
+    }
+    
+    // Elimina prima le sessioni dell'utente
+    $stmt = $pdo->prepare('DELETE FROM user_sessions WHERE user_id = ?');
+    $stmt->execute([$userId]);
+    
+    // Elimina l'utente
+    $stmt = $pdo->prepare('DELETE FROM users WHERE id = ?');
+    $stmt->execute([$userId]);
+    
+    echo json_encode(['success' => true, 'message' => 'Utente eliminato con successo']);
 }
 ?>
