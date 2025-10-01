@@ -50,77 +50,123 @@ const DataProvider = ({ children, isAuthenticated }) => {
   // 🔧 FUNZIONE DI CARICAMENTO GLOBALE - Condivisa tra tutti i componenti
   // 🔧 PATCH PER App.js - Sostituire la funzione loadFiles esistente
 
-const loadFiles = useCallback(async () => {
-  if (!isAuthenticated) return; // Non caricare se non autenticato
-  
-  try {
-    setGlobalLoading(true);
-    console.log('🔄 Caricamento globale dati dal database...');
-    
-    const files = await apiService.loadFiles();
-    
-    if (!files || !Array.isArray(files) || files.length === 0) {
-      console.log('📁 Nessun file trovato nel database');
-      setData(prevData => ({
-        ...prevData,
-        uploadedFiles: [],
-        processedData: {}
-      }));
-      return;
-    }
+  const loadFiles = useCallback(async () => {
+    if (!isAuthenticated) return; // Non caricare se non autenticato
 
-    console.log(`📁 ${files.length} file trovati nel database`);
-    
-    // Converte i dati dal formato database al formato app
-    const processedFiles = files.map((file) => {
-      try {
-        // ✅ FIX: Usa agents_data invece di file_data
-        let fileData = null;
-        
-        // Prima prova con file_data (nuovo formato)
-        if (file.file_data && file.file_data !== 'null') {
-          fileData = typeof file.file_data === 'string' 
-            ? JSON.parse(file.file_data) 
-            : file.file_data;
-        }
-        // Se non disponibile, ricostruisci dai campi separati (formato legacy)
-        else if (file.agents_data && file.agents_data !== 'null') {
-          const agents = typeof file.agents_data === 'string' 
-            ? JSON.parse(file.agents_data) 
-            : file.agents_data;
-          
-          const smRanking = file.sm_ranking && file.sm_ranking !== 'null'
-            ? (typeof file.sm_ranking === 'string' ? JSON.parse(file.sm_ranking) : file.sm_ranking)
-            : [];
-          
-          const existingMetadata = file.metadata && file.metadata !== 'null'
-            ? (typeof file.metadata === 'string' ? JSON.parse(file.metadata) : file.metadata)
-            : {};
+    try {
+      setGlobalLoading(true);
+      console.log('🔄 Caricamento globale dati dal database...');
 
-          // Ricostruisci file_data dal formato legacy
-          fileData = {
-            agents: agents,
-            smRanking: smRanking,
-            metadata: {
-              ...existingMetadata,
-              totalAgents: file.total_agents || agents.length || 0,
-              totalSMs: file.total_sms || 0,
-              totalRevenue: parseFloat(file.total_revenue || 0),
-              totalRush: parseFloat(file.total_inflow || file.total_rush || 0),
-              totalNewClients: file.total_new_clients || 0,
-              totalFastweb: file.total_fastweb || 0,
-            }
+      const files = await apiService.loadFiles();
+
+      if (!files || !Array.isArray(files) || files.length === 0) {
+        console.log('📁 Nessun file trovato nel database');
+        setData(prevData => ({
+          ...prevData,
+          uploadedFiles: [],
+          processedData: {}
+        }));
+        return;
+      }
+
+      console.log(`📁 ${files.length} file trovati nel database`);
+
+      // Converte i dati dal formato database al formato app
+      const processedFiles = files.map((file) => {
+        try {
+          // ✅ FIX: Usa agents_data invece di file_data
+          let fileData = null;
+
+          // Prima prova con file_data (nuovo formato)
+          if (file.file_data && file.file_data !== 'null') {
+            fileData = typeof file.file_data === 'string'
+              ? JSON.parse(file.file_data)
+              : file.file_data;
+          }
+          // Se non disponibile, ricostruisci dai campi separati (formato legacy)
+          else if (file.agents_data && file.agents_data !== 'null') {
+            const agents = typeof file.agents_data === 'string'
+              ? JSON.parse(file.agents_data)
+              : file.agents_data;
+
+            const smRanking = file.sm_ranking && file.sm_ranking !== 'null'
+              ? (typeof file.sm_ranking === 'string' ? JSON.parse(file.sm_ranking) : file.sm_ranking)
+              : [];
+
+            const existingMetadata = file.metadata && file.metadata !== 'null'
+              ? (typeof file.metadata === 'string' ? JSON.parse(file.metadata) : file.metadata)
+              : {};
+
+            // Ricostruisci file_data dal formato legacy
+            fileData = {
+              agents: agents,
+              smRanking: smRanking,
+              metadata: {
+                ...existingMetadata,
+                totalAgents: file.total_agents || agents.length || 0,
+                totalSMs: file.total_sms || 0,
+                totalRevenue: parseFloat(file.total_revenue || 0),
+                totalRush: parseFloat(file.total_inflow || file.total_rush || 0),
+                totalNewClients: file.total_new_clients || 0,
+                totalFastweb: file.total_fastweb || 0,
+              }
+            };
+
+            console.log(`🔨 Ricostruito file_data per ${file.file_date} da campi legacy`);
+          }
+
+          // Se ancora non abbiamo dati, usa valori di fallback
+          if (!fileData) {
+            console.warn(`⚠️ Dati non disponibili per ${file.file_date} - uso fallback`);
+            fileData = {
+              agents: [],
+              smRanking: [],
+              metadata: {
+                totalAgents: 0,
+                totalSMs: 0,
+                totalRevenue: 0,
+                totalRush: 0,
+                totalNewClients: 0,
+                totalFastweb: 0
+              }
+            };
+          }
+
+          const metadataSource = fileData?.metadata ?? {};
+          const normalizedMetadata = {
+            ...metadataSource,
+            totalAgents: metadataSource.totalAgents ?? 0,
+            totalSMs: metadataSource.totalSMs ?? 0,
+            totalRevenue: metadataSource.totalRevenue ?? 0,
+            totalRush: metadataSource.totalRush ?? 0,
+            totalNewClients: metadataSource.totalNewClients ?? 0,
+            totalFastweb: metadataSource.totalFastweb ?? 0
           };
-          
-          console.log(`🔨 Ricostruito file_data per ${file.file_date} da campi legacy`);
-        }
 
-        // Se ancora non abbiamo dati, usa valori di fallback
-        if (!fileData) {
-          console.warn(`⚠️ Dati non disponibili per ${file.file_date} - uso fallback`);
-          fileData = {
-            agents: [],
-            smRanking: [],
+          return {
+            id: file.id,
+            name: file.file_name,
+            date: file.file_date,
+            displayDate: file.display_date,
+            uploadDate: file.upload_date,
+            size: file.file_size,
+            data: fileData, // ✅ Ora fileData è sempre popolato
+            metadata: normalizedMetadata
+          };
+        } catch (error) {
+          console.warn(`❌ Errore processamento file ${file.file_date}:`, error);
+          return {
+            id: file.id,
+            name: file.file_name,
+            date: file.file_date,
+            displayDate: file.display_date,
+            uploadDate: file.upload_date,
+            size: file.file_size,
+            data: {
+              agents: [],
+              smRanking: [],
+              metadata: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 }
+            },
             metadata: {
               totalAgents: 0,
               totalSMs: 0,
@@ -131,99 +177,53 @@ const loadFiles = useCallback(async () => {
             }
           };
         }
+      });
 
-        const metadataSource = fileData?.metadata ?? {};
-        const normalizedMetadata = {
-          ...metadataSource,
-          totalAgents: metadataSource.totalAgents ?? 0,
-          totalSMs: metadataSource.totalSMs ?? 0,
-          totalRevenue: metadataSource.totalRevenue ?? 0,
-          totalRush: metadataSource.totalRush ?? 0,
-          totalNewClients: metadataSource.totalNewClients ?? 0,
-          totalFastweb: metadataSource.totalFastweb ?? 0
-        };
+      // Ordina i file per data
+      const sortedFiles = sortFilesByDate(processedFiles);
 
-        return {
-          id: file.id,
-          name: file.file_name,
-          date: file.file_date,
-          displayDate: file.display_date,
-          uploadDate: file.upload_date,
-          size: file.file_size,
-          data: fileData, // ✅ Ora fileData è sempre popolato
-          metadata: normalizedMetadata
-        };
-      } catch (error) {
-        console.warn(`❌ Errore processamento file ${file.file_date}:`, error);
-        return {
-          id: file.id,
-          name: file.file_name,
-          date: file.file_date,
-          displayDate: file.display_date,
-          uploadDate: file.upload_date,
-          size: file.file_size,
-          data: {
-            agents: [],
-            smRanking: [],
-            metadata: { totalAgents: 0, totalSMs: 0, totalRevenue: 0, totalRush: 0, totalNewClients: 0, totalFastweb: 0 }
-          },
-          metadata: {
-            totalAgents: 0,
-            totalSMs: 0,
-            totalRevenue: 0,
-            totalRush: 0,
-            totalNewClients: 0,
-            totalFastweb: 0
-          }
-        };
+      // Crea il processedData per compatibilità
+      const processedData = {};
+      sortedFiles.forEach(file => {
+        if (file.data) {
+          processedData[file.date] = file.data;
+        }
+      });
+
+      // Seleziona automaticamente il file più recente se non c'è selezione
+      const newSelectedFileDate = selectedFileDate && sortedFiles.find(f => f.date === selectedFileDate)
+        ? selectedFileDate
+        : (sortedFiles.length > 0 ? sortedFiles[0].date : null);
+
+      setData(prevData => ({
+        ...prevData,
+        uploadedFiles: sortedFiles,
+        processedData: processedData
+      }));
+
+      setSelectedFileDate(newSelectedFileDate);
+
+      console.log(`✅ ${sortedFiles.length} file caricati con successo globalmente`);
+      console.log(`📊 File con dati: ${Object.keys(processedData).length}`);
+
+      if (sortedFiles.length > 0 && newSelectedFileDate) {
+        console.log(`📋 File selezionato: ${sortedFiles.find(f => f.date === newSelectedFileDate)?.displayDate || 'N/A'}`);
       }
-    });
-    
-    // Ordina i file per data
-    const sortedFiles = sortFilesByDate(processedFiles);
-    
-    // Crea il processedData per compatibilità
-    const processedData = {};
-    sortedFiles.forEach(file => {
-      if (file.data) {
-        processedData[file.date] = file.data;
-      }
-    });
-    
-    // Seleziona automaticamente il file più recente se non c'è selezione
-    const newSelectedFileDate = selectedFileDate && sortedFiles.find(f => f.date === selectedFileDate) 
-      ? selectedFileDate 
-      : (sortedFiles.length > 0 ? sortedFiles[0].date : null);
-    
-    setData(prevData => ({
-      ...prevData,
-      uploadedFiles: sortedFiles,
-      processedData: processedData
-    }));
-    
-    setSelectedFileDate(newSelectedFileDate);
-    
-    console.log(`✅ ${sortedFiles.length} file caricati con successo globalmente`);
-    console.log(`📊 File con dati: ${Object.keys(processedData).length}`);
-    
-    if (sortedFiles.length > 0 && newSelectedFileDate) {
-      console.log(`📋 File selezionato: ${sortedFiles.find(f => f.date === newSelectedFileDate)?.displayDate || 'N/A'}`);
+
+    } catch (error) {
+      console.error('❌ Errore nel caricamento globale dei file:', error);
+      toast.error('Errore nel caricamento dei dati dal database');
+
+      // Reset in caso di errore
+      setData(prevData => ({
+        ...prevData,
+        uploadedFiles: [],
+        processedData: {}
+      }));
+    } finally {
+      setGlobalLoading(false);
     }
-    
-  } catch (error) {
-    console.error('❌ Errore nel caricamento globale dei file:', error);
-    toast.error('Errore nel caricamento dei dati dal database');
-    
-    // Reset in caso di errore
-    setData(prevData => ({
-      ...prevData,
-      uploadedFiles: [],
-      processedData: {}
-    }));
-  } finally {
-    setGlobalLoading(false);
-  } 
-}, [isAuthenticated, selectedFileDate]);
+  }, [isAuthenticated, selectedFileDate]);
 
   // 🚀 CARICAMENTO AUTOMATICO ALL'AUTENTICAZIONE
   useEffect(() => {
@@ -289,10 +289,10 @@ const Login = ({ onLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const result = await apiService.login(credentials.username, credentials.password);
-      
+
       if (result.success) {
         onLogin(result.user);
         toast.success(`Benvenuto, ${result.user.full_name || result.user.username}!`);
@@ -314,7 +314,7 @@ const Login = ({ onLogin }) => {
           <h1>🏆 RUSH</h1>
           <p>Gara di Produzione Agenti</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="modern-login-form">
           <div className="modern-form-group">
             <label htmlFor="username">Username</label>
@@ -322,33 +322,33 @@ const Login = ({ onLogin }) => {
               id="username"
               type="text"
               value={credentials.username}
-              onChange={(e) => setCredentials({...credentials, username: e.target.value})}
+              onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
               placeholder="es. mario.rossi"
               required
             />
           </div>
-          
+
           <div className="modern-form-group">
             <label htmlFor="password">Password</label>
             <input
               id="password"
               type="password"
               value={credentials.password}
-              onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+              onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
               placeholder="••••••••"
               required
             />
           </div>
-          
-          <button 
-            type="submit" 
+
+          <button
+            type="submit"
             className={`modern-login-btn ${loading ? 'loading' : ''}`}
             disabled={loading}
           >
             {loading ? 'Accesso...' : 'Accedi'}
           </button>
         </form>
-        
+
       </div>
     </div>
   );
@@ -377,7 +377,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'application/vnd.ms-excel'
       ];
-      
+
       if (!validTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.xlsx')) {
         toast.error('File non valido. Sono supportati solo file Excel (.xlsx, .xls)', { id: 'upload' });
         return;
@@ -385,7 +385,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
 
       // *** NUOVO: Parsing dinamico con gestione anomalie ***
       const parseResult = await parseExcelFile(file);
-      
+
       if (!parseResult.success) {
         if (parseResult.needsMapping) {
           // 🆕 Gestisci mappatura manuale se necessaria
@@ -395,12 +395,12 @@ const FileUpload = ({ openDialog, currentUser }) => {
             `Colonne disponibili nel file: ${parseResult.availableColumns.slice(0, 10).join(', ')}${parseResult.availableColumns.length > 10 ? '...' : ''}\n\n` +
             `Vuoi procedere comunque? I campi mancanti saranno impostati a 0.`
           );
-          
+
           if (!userChoice) {
             toast.error('Caricamento annullato', { id: 'upload' });
             return;
           }
-          
+
           // Per ora procediamo, in futuro si può implementare una mappatura manuale
         } else {
           toast.error(`❌ Errore nel parsing del file: ${parseResult.error}`, { id: 'upload' });
@@ -412,7 +412,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
       if (parseResult.data?.metadata?.warnings && parseResult.data.metadata.warnings.length > 0) {
         const warningCount = parseResult.data.metadata.warnings.length;
         const warningFields = parseResult.data.metadata.warnings.map(w => w.field).join(', ');
-        
+
         toast.success(
           `⚡ File parsato con successo!\n` +
           `⚠️ ${warningCount} campi opzionali impostati a zero: ${warningFields}\n` +
@@ -444,7 +444,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
           }
         };
 
-        const result = await apiService.saveFile(fileData);
+        const result = await apiService.uploadFile(file, parsedData);
 
         if (result.success) {
           // Success feedback con dettagli migliorati
@@ -452,7 +452,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
           const smCount = parsedData.metadata.totalSMs;
           const totalFatturato = parsedData.metadata.totalRevenue;
           const totalRush = parsedData.metadata.totalRush;
-          
+
           const actionText = result.action === 'updated' ? 'aggiornato' : 'caricato';
           toast.success(
             `✅ File ${actionText} con successo!\n` +
@@ -472,7 +472,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
 
       // Controlla duplicati basandosi sulla data nel nome file
       const existingFile = data.uploadedFiles.find(f => f.date === fileDate);
-      
+
       if (existingFile) {
         toast.dismiss('upload');
         const monthYear = `${parsedData.metadata.dateInfo.month}/${parsedData.metadata.dateInfo.year}`;
@@ -570,7 +570,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
           </div>
         </>
       )}
-      
+
       <div className="uploaded-files">
         <h4>File Caricati ({data.uploadedFiles.length})</h4>
         {data.uploadedFiles.length === 0 ? (
@@ -619,7 +619,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
 // Componente principale con routing - AGGIORNATO per usare DataProvider
 const MainApp = ({ currentUser, onLogout, isAuthenticated }) => {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -827,13 +827,13 @@ function App() {
         {!isAuthenticated ? (
           <Login onLogin={handleLogin} />
         ) : (
-          <MainApp 
-            currentUser={currentUser} 
+          <MainApp
+            currentUser={currentUser}
             onLogout={handleLogout}
             isAuthenticated={isAuthenticated}
           />
         )}
-        <Toaster 
+        <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,

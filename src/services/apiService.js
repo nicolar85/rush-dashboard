@@ -232,11 +232,11 @@ class ApiService {
 
     } catch (error) {
       logError(`❌ API Error: ${endpoint}`, error);
-      
+
       if (error instanceof ApiError) {
         throw error;
       }
-      
+
       // Errori di rete o CORS
       if (error instanceof TypeError && error.message.includes('fetch')) {
         logError(`🌐 Network Error: Impossibile raggiungere ${url}`);
@@ -244,13 +244,13 @@ class ApiService {
         logError('   - Server non raggiungibile');
         logError('   - Problemi CORS');
         logError('   - Connessione internet assente');
-        
+
         throw new ApiError(
-          'Errore di connessione. Controlla la connessione internet.', 
+          'Errore di connessione. Controlla la connessione internet.',
           0
         );
       }
-      
+
       throw new ApiError('Errore di comunicazione con il server', 0, error);
     }
   }
@@ -538,7 +538,7 @@ class ApiService {
   async saveFile(fileData) {
     try {
       logDebug('💾 Saving file:', fileData.name, fileData.date);
-      
+
       const response = await this.makeRequest('uploads', {
         method: 'POST',
         body: JSON.stringify({ fileData }),
@@ -568,11 +568,11 @@ class ApiService {
   async deleteFile(fileDate) {
     try {
       logDebug(`🗑️ Deleting file: ${fileDate}`);
-      
+
       const response = await this.makeRequest(`uploads/${fileDate}`, {
         method: 'DELETE',
       });
-      
+
       logDebug('✅ File deleted successfully:', response);
       return response;
     } catch (error) {
@@ -589,20 +589,44 @@ class ApiService {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('data', JSON.stringify(parsedData));
-      
+
       logDebug('📤 Uploading file:', file.name);
-      
-      const response = await this.makeRequest('upload-file', {
+      logDebug('📊 Data size:', JSON.stringify(parsedData).length, 'bytes');
+
+      const url = `${this.baseURL}/upload-file`;
+      const headers = this.getAuthHeaders(); // Solo Authorization
+
+      const response = await fetch(url, {
         method: 'POST',
-        body: formData,
-        headers: {
-          // Non impostare Content-Type per FormData - il browser lo fa automaticamente
-          ...this.getAuthHeaders()
-        }
+        headers: headers,
+        body: formData
+        // RIMUOVI: credentials: 'include'
       });
-      
-      logDebug('✅ File uploaded successfully:', response);
-      return response;
+
+      logDebug('📥 Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logError('❌ Upload failed:', response.status, errorText);
+
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: 'Errore server', details: errorText };
+        }
+
+        throw new ApiError(
+          errorData.error || 'Upload fallito',
+          response.status,
+          errorData
+        );
+      }
+
+      const result = await response.json();
+      logDebug('✅ File uploaded successfully:', result);
+      return result;
+
     } catch (error) {
       logError('❌ Error uploading file:', error);
       throw error;
@@ -805,7 +829,7 @@ class ApiService {
   async exportData() {
     try {
       logDebug('📥 Starting data export...');
-      
+
       const files = await this.loadFiles();
       const fullData = {};
 
@@ -838,7 +862,7 @@ class ApiService {
           fullData[result.key] = result.value;
         }
       }
-      
+
       const exportData = {
         exportDate: new Date().toISOString(),
         version: '1.0.0',
@@ -848,12 +872,12 @@ class ApiService {
           exportedBy: this.getCurrentUser()?.username
         }
       };
-      
+
       // Crea e scarica file JSON
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: 'application/json'
       });
-      
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -862,10 +886,10 @@ class ApiService {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       logDebug('✅ Data export completed successfully');
       return { success: true, message: 'Export completato con successo' };
-      
+
     } catch (error) {
       logError('❌ Error during data export:', error);
       throw error;
@@ -878,10 +902,10 @@ class ApiService {
   async importData(backupFile) {
     try {
       logDebug('📤 Starting data import...');
-      
+
       const formData = new FormData();
       formData.append('backup', backupFile);
-      
+
       const response = await this.makeRequest('import', {
         method: 'POST',
         body: formData,
@@ -889,10 +913,10 @@ class ApiService {
           ...this.getAuthHeaders()
         }
       });
-      
+
       logDebug('✅ Data import completed:', response);
       return response;
-      
+
     } catch (error) {
       logError('❌ Error during data import:', error);
       throw error;

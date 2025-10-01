@@ -87,6 +87,12 @@ try {
                 handleFileUpload($pdo);
             }
             break;
+
+        case 'upload-file':
+            if ($method === 'POST') {
+                handleFileUploadWithBinary($pdo);
+            }
+            break;
             
         case 'file-data':
             if ($method === 'GET') {
@@ -758,5 +764,278 @@ function handleDeleteUser(PDO $pdo, $userId): void
     $stmt->execute([$userId]);
     
     echo json_encode(['success' => true, 'message' => 'Utente eliminato con successo']);
+}
+
+// Funzione con logging dettagliato per debug
+function handleFileUploadWithBinary(PDO $pdo): void
+{
+    error_log("=== INIZIO handleFileUploadWithBinary ===");
+    
+    try {
+        $token = getAuthorizationToken();
+if (!$token) {
+    error_log("Errore: token mancante");
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Token di autenticazione mancante']);
+    return;
+}
+
+$stmt = $pdo->prepare(
+    'SELECT u.id, u.username, u.role FROM users u 
+     JOIN user_sessions s ON u.id = s.user_id 
+     WHERE s.session_token = ? AND s.expires_at > NOW()'
+);
+$stmt->execute([$token]);
+$user = $stmt->fetch();
+
+if (!$user) {
+    error_log("Errore: token non valido");
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Token non valido o sessione scaduta']);
+    return;
+}
+
+error_log("User autenticato: " . $user['username']);
+        
+        // Solo admin possono caricare file
+        if ($user['role'] !== 'admin') {
+            error_log("Errore: utente non admin");
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Accesso negato']);
+            return;
+        }
+
+        // Verifica che ci sia un file
+        if (!isset($_FILES['file'])) {
+            error_log("Errore: nessun file in $_FILES");
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Nessun file caricato']);
+            return;
+        }
+        
+        $uploadError = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            error_log("Errore upload file: " . $uploadError);
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Errore durante upload: ' . $uploadError]);
+            return;
+        }
+
+        error_log("File ricevuto: " . $_FILES['file']['name']);
+
+        // Recupera i dati parsati dal frontend
+        $parsedDataJson = $_POST['data'] ?? null;
+        if (!$parsedDataJson) {
+            error_log("Errore: dati mancanti in POST");
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Dati mancanti']);
+            return;
+        }
+
+        error_log("Lunghezza JSON ricevuto: " . strlen($parsedDataJson));
+
+        $parsedData = json_decode($parsedDataJson, true);
+        if (!$parsedData) {
+            error_log("Errore: JSON decode fallito - " . json_last_error_msg());
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Formato dati non valido: ' . json_last_error_msg()]);
+            return;
+        }
+
+        if (!isset($parsedData['metadata'])) {
+            error_log("Errore: metadata mancante. Keys disponibili: " . implode(', ', array_keys($parsedData)));
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Metadata mancante']);
+            return;
+        }
+
+        error_log("Metadata presente");
+
+        // Estrai informazioni dal file
+        $uploadedFile = $_FILES['file'];
+        $fileName = $uploadedFile['name'];
+        $fileSize = $uploadedFile['size'];
+        
+        error_log("File name: $fileName, size: $fileSize");
+        
+        // Estrai metadata
+        $metadata = $parsedData['metadata'];
+        $dateInfo = $metadata['dateInfo'] ?? null;
+        
+        if (!$dateInfo) {
+            error_log("Errore: dateInfo mancante. Metadata keys: " . implode(', ', array_keys($metadata)));
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'dateInfo mancante in metadata']);
+            return;
+        }
+        
+        $fileDate = $dateInfo['dateString'] ?? date('Y-m-d');
+        $displayDate = ($dateInfo['month'] ?? date('m')) . '/' . ($dateInfo['year'] ?? date('Y'));
+        
+        error_log("File date: $fileDate, display: $displayDate");
+        
+        // Prepara dati per il database
+        // Il parser restituisce 'agents' e 'smData', non 'agenti' e 'coordinatori'
+        $agentsData = $parsedData['agents'] ?? [];
+        $smRanking = $parsedData['smData'] ?? [];
+        
+        error_log("Agents count: " . count($agentsData) . ", SM count: " . count($smRanking));
+        
+        $totalAgents = (int)($metadata['totalAgents'] ?? 0);
+        $totalSMs = (int)($metadata['totalSMs'] ?? 0);
+        $totalRevenue = (float)($metadata['totalRevenue'] ?? 0);
+        $totalRush = (float)($metadata['totalRush'] ?? 0);
+        $totalInflow = (float)($metadata['totalInflow'] ?? $totalRush);
+        $totalNewClients = (int)($metadata['totalNewClients'] ?? 0);
+        $totalFastweb = (int)($metadata['totalFastweb'] ?? 0);
+        
+        error_log("Totali: agents=$totalAgents, sms=$totalSMs, revenue=$totalRevenue, rush=$totalRush");
+        
+        // Serializza dati
+        // Mantieni la struttura originale del parser per il campo file_data
+        $fileDataForDb = [
+            'agents' => $agentsData,
+            'smData' => $smRanking,
+            'metadata' => $metadata
+        ];
+        
+        $agentsJson = json_encode($agentsData, JSON_UNESCAPED_UNICODE);
+        $smRankingJson = json_encode($smRanking, JSON_UNESCAPED_UNICODE);
+        $metadataJson = json_encode($metadata, JSON_UNESCAPED_UNICODE);
+        $fileDataJson = json_encode($fileDataForDb, JSON_UNESCAPED_UNICODE);
+        
+        // Verifica serializzazione
+        foreach ([
+            'agents_data' => $agentsJson,
+            'sm_ranking' => $smRankingJson,
+            'metadata' => $metadataJson,
+            'file_data' => $fileDataJson,
+        ] as $key => $encoded) {
+            if ($encoded === false) {
+                error_log("Errore serializzazione: $key");
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => "Impossibile serializzare {$key}"]);
+                return;
+            }
+        }
+        
+        error_log("Serializzazione completata");
+        
+        $pdo->beginTransaction();
+        error_log("Transazione iniziata");
+        
+        try {
+            // Controlla se esiste già un file con questa data
+            $lookup = $pdo->prepare('SELECT id FROM uploaded_files WHERE file_date = ? LIMIT 1');
+            $lookup->execute([$fileDate]);
+            $existingId = $lookup->fetchColumn();
+            
+            if ($existingId) {
+                error_log("File esistente trovato, ID: $existingId - aggiornamento");
+                
+                // Aggiorna file esistente
+                $stmt = $pdo->prepare(
+                    'UPDATE uploaded_files SET 
+                        file_name = ?, 
+                        display_date = ?, 
+                        file_size = ?, 
+                        upload_date = NOW(), 
+                        uploaded_by = ?, 
+                        agents_data = ?, 
+                        sm_ranking = ?, 
+                        metadata = ?, 
+                        file_data = ?, 
+                        total_agents = ?, 
+                        total_sms = ?, 
+                        total_revenue = ?, 
+                        total_inflow = ?, 
+                        total_new_clients = ?, 
+                        total_fastweb = ?, 
+                        total_rush = ? 
+                    WHERE id = ?'
+                );
+                
+                $stmt->execute([
+                    $fileName,
+                    $displayDate,
+                    $fileSize,
+                    $user['id'],
+                    $agentsJson,
+                    $smRankingJson,
+                    $metadataJson,
+                    $fileDataJson,
+                    $totalAgents,
+                    $totalSMs,
+                    number_format($totalRevenue, 2, '.', ''),
+                    number_format($totalInflow, 2, '.', ''),
+                    $totalNewClients,
+                    $totalFastweb,
+                    number_format($totalRush, 2, '.', ''),
+                    $existingId,
+                ]);
+                
+                $action = 'updated';
+                error_log("File aggiornato con successo");
+            } else {
+                error_log("Nessun file esistente - creazione nuovo record");
+                
+                // Crea nuovo record
+                $stmt = $pdo->prepare(
+                    'INSERT INTO uploaded_files 
+                    (file_date, file_name, display_date, file_size, upload_date, uploaded_by, 
+                    agents_data, sm_ranking, metadata, file_data, total_agents, total_sms, 
+                    total_revenue, total_inflow, total_new_clients, total_fastweb, total_rush) 
+                    VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                );
+                
+                $stmt->execute([
+                    $fileDate,
+                    $fileName,
+                    $displayDate,
+                    $fileSize,
+                    $user['id'],
+                    $agentsJson,
+                    $smRankingJson,
+                    $metadataJson,
+                    $fileDataJson,
+                    $totalAgents,
+                    $totalSMs,
+                    number_format($totalRevenue, 2, '.', ''),
+                    number_format($totalInflow, 2, '.', ''),
+                    $totalNewClients,
+                    $totalFastweb,
+                    number_format($totalRush, 2, '.', ''),
+                ]);
+                
+                $action = 'created';
+                error_log("File creato con successo");
+            }
+            
+            $pdo->commit();
+            error_log("Transazione committata");
+            
+            echo json_encode(['success' => true, 'action' => $action]);
+            error_log("=== FINE handleFileUploadWithBinary (SUCCESS) ===");
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            error_log("Errore durante commit: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            http_response_code(500);
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Salvataggio file non riuscito', 
+                'details' => $e->getMessage()
+            ]);
+        }
+    } catch (Throwable $e) {
+        error_log("Errore generale: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        http_response_code(500);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Errore interno del server', 
+            'details' => $e->getMessage()
+        ]);
+    }
 }
 ?>
