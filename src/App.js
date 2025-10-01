@@ -359,7 +359,11 @@ const Login = ({ onLogin }) => {
 const FileUpload = ({ openDialog, currentUser }) => {
   const { data, loadFiles, globalLoading } = useData();
   const [uploading, setUploading] = useState(false);
-  const isViewer = currentUser?.role === 'viewer';
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(currentUser?.role === 'admin');
+  }, [currentUser]);
 
   // ⚠️ IMPORTANTE: Ora loadFiles è gestito globalmente, non qui
 
@@ -367,6 +371,13 @@ const FileUpload = ({ openDialog, currentUser }) => {
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
+    if (!isAdmin) {
+      // Interfaccia dovrebbe già bloccare il caricamento, manteniamo il controllo come ulteriore salvaguardia
+      toast.error('⛔ Solo gli amministratori possono caricare file.', { id: 'upload', duration: 4000 });
+      event.target.value = '';
+      return;
+    }
 
     setUploading(true);
     toast.loading('Parsing del file Excel...', { id: 'upload' });
@@ -490,8 +501,9 @@ const FileUpload = ({ openDialog, currentUser }) => {
       }
 
     } catch (error) {
-      if (error?.statusCode === 403) {
-        toast.error('⛔ Accesso negato. Solo gli amministratori possono caricare o aggiornare file.', { id: 'upload', duration: 5000 });
+      if (error?.statusCode === 403 || error?.response?.status === 403) {
+        // Fallback eccezionale: l'interfaccia dovrebbe già impedire l'azione ai non admin
+        toast.error('⛔ Accesso negato. Se hai bisogno di permessi contatta un amministratore.', { id: 'upload', duration: 5000 });
       } else {
         toast.error(`❌ Errore: ${error.message || 'Caricamento fallito'}`, { id: 'upload' });
       }
@@ -503,6 +515,11 @@ const FileUpload = ({ openDialog, currentUser }) => {
   };
 
   const handleDeleteFile = async (fileDate, fileName) => {
+    if (!isAdmin) {
+      toast.error('⛔ Solo gli amministratori possono eliminare file.', { id: 'delete', duration: 4000 });
+      return;
+    }
+
     openDialog(
       'Conferma Eliminazione',
       `Sei sicuro di voler eliminare il file ${fileName}?`,
@@ -539,12 +556,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
 
   return (
     <div className="file-upload-section">
-      {isViewer ? (
-        <div className="viewer-message">
-          <p>La funzione di caricamento ed eliminazione è disponibile solo per gli amministratori.</p>
-          <p>Contatta un amministratore per gestire i file.</p>
-        </div>
-      ) : (
+      {isAdmin ? (
         <>
           <h3>📁 Carica File Mensile</h3>
           <div className="upload-area">
@@ -553,7 +565,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
               id="file-upload"
               accept=".xlsx,.xls"
               onChange={handleFileUpload}
-              disabled={uploading}
+              disabled={!isAdmin || uploading}
               className="file-input"
             />
             <label htmlFor="file-upload" className={`upload-label ${uploading ? 'uploading' : ''}`}>
@@ -569,6 +581,11 @@ const FileUpload = ({ openDialog, currentUser }) => {
             </p>
           </div>
         </>
+      ) : (
+        <div className="viewer-message">
+          <p>Solo gli amministratori possono caricare o eliminare file da questa sezione.</p>
+          <p>Contatta un amministratore per richiedere assistenza o l&apos;aggiornamento dei dati.</p>
+        </div>
       )}
       
       <div className="uploaded-files">
@@ -596,7 +613,7 @@ const FileUpload = ({ openDialog, currentUser }) => {
                 <span className="file-date">{file.displayDate}</span>
                 <div className="file-actions">
                   <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
-                  {!isViewer && (
+                  {isAdmin && (
                     <button
                       className="delete-file-btn"
                       onClick={() => handleDeleteFile(file.date, file.name)}
