@@ -117,7 +117,7 @@ function ensureBasicSchema(PDO $pdo): void
             throw new RuntimeException("Tabella $table mancante");
         }
     }
-    
+
     // Crea user_sessions se manca
     $stmt = $pdo->query("SHOW TABLES LIKE 'user_sessions'");
     if (!$stmt->fetch()) {
@@ -130,6 +130,36 @@ function ensureBasicSchema(PDO $pdo): void
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         ");
+    }
+
+    // Aggiorna schema uploaded_files con le colonne utilizzate da handleFileUpload
+    $columns = [
+        'agents_data' => 'LONGTEXT NULL',
+        'sm_ranking' => 'LONGTEXT NULL',
+        'metadata' => 'LONGTEXT NULL',
+        'file_data' => 'LONGTEXT NULL',
+        'total_agents' => 'INT NULL',
+        'total_sms' => 'INT NULL',
+        'total_revenue' => 'DECIMAL(15,2) NULL',
+        'total_inflow' => 'DECIMAL(15,2) NULL',
+        'total_new_clients' => 'INT NULL',
+        'total_fastweb' => 'INT NULL',
+        'total_rush' => 'DECIMAL(15,2) NULL',
+    ];
+
+    try {
+        foreach ($columns as $column => $definition) {
+            $stmt = $pdo->prepare('SHOW COLUMNS FROM uploaded_files LIKE ?');
+            $stmt->execute([$column]);
+
+            if ($stmt->fetch()) {
+                continue;
+            }
+
+            $pdo->exec(sprintf('ALTER TABLE uploaded_files ADD COLUMN %s %s', $column, $definition));
+        }
+    } catch (Throwable $e) {
+        throw new RuntimeException('Impossibile aggiornare lo schema di uploaded_files: ' . $e->getMessage(), 0, $e);
     }
 }
 
