@@ -145,6 +145,10 @@ function ensureBasicSchema(PDO $pdo): void
         'total_new_clients' => 'INT NULL',
         'total_fastweb' => 'INT NULL',
         'total_rush' => 'DECIMAL(15,2) NULL',
+        'display_date' => 'VARCHAR(20) NULL',
+        'file_size' => 'INT NULL',
+        'upload_date' => 'DATETIME NULL',
+        'uploaded_by' => 'INT NULL',
     ];
 
     try {
