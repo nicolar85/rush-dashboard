@@ -340,9 +340,17 @@ class ApiService {
       }
 
       this.token = sessionData?.token || null;
+
+      if (!this.token) {
+        this.currentUser = null;
+        this.expiresAt = null;
+        this.sessionActive = false;
+        return;
+      }
+
       this.currentUser = sessionData?.currentUser || null;
       this.expiresAt = sessionData?.expiresAt || null;
-      this.sessionActive = Boolean(sessionData?.sessionActive && sessionData?.token);
+      this.sessionActive = false;
     } catch (error) {
       logWarn('Impossibile caricare la sessione dal localStorage:', error);
 
@@ -415,23 +423,16 @@ class ApiService {
    * Controlla se l'utente è autenticato
    */
   isAuthenticated() {
-    if (this.token) {
-      if (this.expiresAt && new Date(this.expiresAt) <= new Date()) {
-        this.clearSession();
-        return false;
-      }
-      return true;
+    if (!this.token || !this.sessionActive) {
+      return false;
     }
 
-    if (this.sessionActive) {
-      if (this.expiresAt && new Date(this.expiresAt) <= new Date()) {
-        this.clearSession();
-        return false;
-      }
-      return true;
+    if (this.expiresAt && new Date(this.expiresAt) <= new Date()) {
+      this.clearSession();
+      return false;
     }
 
-    return false;
+    return true;
   }
 
   /**
@@ -445,7 +446,7 @@ class ApiService {
    * Prova a ripristinare una sessione attiva utilizzando cookie/token
    */
   async restoreSession() {
-    if (!this.token && !this.sessionActive) {
+    if (!this.token) {
       return { success: false };
     }
 

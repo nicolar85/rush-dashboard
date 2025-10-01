@@ -758,26 +758,10 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        let user = null;
+        const session = await apiService.restoreSession();
 
-        if (apiService.isAuthenticated()) {
-          user = apiService.getCurrentUser();
-
-          if (!user) {
-            const session = await apiService.restoreSession();
-            if (session.success) {
-              user = session.user;
-            }
-          }
-        } else {
-          const session = await apiService.restoreSession();
-          if (session.success) {
-            user = session.user;
-          }
-        }
-
-        if (user) {
-          setCurrentUser(user);
+        if (session.success && session.user) {
+          setCurrentUser(session.user);
           setIsAuthenticated(true);
 
           // Test connessione API
@@ -794,6 +778,8 @@ function App() {
         }
       } catch (error) {
         console.error('Errore verifica autenticazione:', error);
+        setCurrentUser(null);
+        setIsAuthenticated(false);
       } finally {
         setInitializing(false);
       }

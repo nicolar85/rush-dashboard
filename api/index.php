@@ -325,6 +325,7 @@ function handleLogin(PDO $pdo): void
     echo json_encode([
         'success' => true,
         'token' => $token,
+        'expires_at' => $expires,
         'user' => [
             'id' => $user['id'],
             'username' => $user['username'],
