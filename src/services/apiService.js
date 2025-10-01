@@ -445,6 +445,10 @@ class ApiService {
    * Prova a ripristinare una sessione attiva utilizzando cookie/token
    */
   async restoreSession() {
+    if (!this.token && !this.sessionActive) {
+      return { success: false };
+    }
+
     try {
       const response = await this.makeRequest('profile', {
         skipAuthErrorHandling: true,
